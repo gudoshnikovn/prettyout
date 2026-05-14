@@ -1,0 +1,25 @@
+launchers:
+  uvx:
+    skip_flags: [--no-cache, --no-project, --isolated, -q, --quiet]
+    value_flags: [--python, -p, --with, --from]
+    tool_position: first_non_flag
+  pipx:
+    value_flags: [--python, --spec, --index-url]
+    prefix_args: [run]
+    tool_position: first_non_flag
+  npx:
+    skip_flags: [--yes, -y, --no, --legacy-peer-deps]
+    value_flags: [-p, --package]
+    tool_position: first_non_flag
+
+tools:
+  ruff:
+    plugin: prettyout-ruff
+    intercept_subcommands: [check]
+    json_flags: [--output-format=json]
+    passthrough_flags: [--watch, -W]
+    launchers: [uvx, pipx]
+  basedpyright:
+    plugin: prettyout-basedpyright
+    json_flags: [--outputjson]
+    launchers: [uvx]
