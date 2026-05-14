@@ -163,3 +163,42 @@ func TestDecide_noArgs(t *testing.T) {
 		t.Error("no args: no subcommand to intercept")
 	}
 }
+
+func TestDecide_launcher_noTool(t *testing.T) {
+	// uvx with only flags — ExtractTool returns "" — should passthrough
+	cfg := enabledCfg("ruff")
+	d := Decide("uvx", []string{"--no-cache"}, uvxRegistry(), cfg, true)
+	if d.Intercept {
+		t.Error("launcher with no tool arg should not intercept")
+	}
+}
+
+func TestDecide_launcher_passthroughFlag(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {
+				Plugin:               "prettyout-ruff",
+				OutputArgs:           []string{"--output-format=json"},
+				InterceptSubcommands: []string{"check"},
+				PassthroughFlags:     []string{"--watch", "-W"},
+				Launchers:            []string{"uvx"},
+			},
+		},
+		Launchers: map[string]registry.LauncherConfig{
+			"uvx": {ValueFlags: []string{"--python"}},
+		},
+	}
+	cfg := enabledCfg("ruff")
+	d := Decide("uvx", []string{"ruff", "check", "--watch"}, reg, cfg, true)
+	if d.Intercept {
+		t.Error("--watch via launcher should cause passthrough")
+	}
+}
+
+func TestDecide_launcher_wrongSubcommand(t *testing.T) {
+	cfg := enabledCfg("ruff")
+	d := Decide("uvx", []string{"ruff", "format", "."}, uvxRegistry(), cfg, true)
+	if d.Intercept {
+		t.Error("uvx ruff format should not intercept (only check is intercepted)")
+	}
+}
