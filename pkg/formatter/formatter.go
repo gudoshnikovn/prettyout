@@ -18,3 +18,18 @@ func Run(transform func([]byte) error) {
 		os.Exit(1)
 	}
 }
+
+// RunWithConfig reads all of stdin and passes it along with loaded formatter
+// settings to transform. toolName must match the key in prettyout config settings.
+func RunWithConfig(toolName string, transform func([]byte, Config) error) {
+	cfg := LoadConfig(toolName)
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prettyout: read error: %v\n", err)
+		os.Exit(1)
+	}
+	if err := transform(data, cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "prettyout: %v\n", err)
+		os.Exit(1)
+	}
+}
