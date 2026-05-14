@@ -14,227 +14,70 @@ func minimalConfig() *config.Config {
 		Plugins:     map[string]string{},
 		Settings:    map[string]config.FormatterSettings{},
 		CustomTools: map[string]registry.ToolConfig{},
-		CIMode:      "always", // no TTY check, simplest for tests
+		CIMode:      "always",
 	}
 }
 
-func TestGenerate_containsToolFunction(t *testing.T) {
-	reg := &registry.Registry{
+func ruffReg() *registry.Registry {
+	return &registry.Registry{
 		Tools: map[string]registry.ToolConfig{
 			"ruff": {
-				Plugin:    "prettyout-ruff",
-				JSONFlags: []string{"--output-format=json"},
-			},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	got := Generate("zsh", reg, minimalConfig())
-	if !strings.Contains(got, "ruff()") {
-		t.Error("expected ruff() function in hook")
-	}
-	if !strings.Contains(got, "prettyout _enabled ruff") {
-		t.Error("expected prettyout _enabled ruff check")
-	}
-	if !strings.Contains(got, "--output-format=json") {
-		t.Error("expected JSON flag in hook")
-	}
-	if !strings.Contains(got, "prettyout-ruff") {
-		t.Error("expected plugin name in hook")
-	}
-	if !strings.Contains(got, "command ruff") {
-		t.Error("expected fallback 'command ruff'")
-	}
-}
-
-func TestGenerate_subcommandCheck(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {
-				Plugin:               "prettyout-ruff",
-				JSONFlags:            []string{"--output-format=json"},
-				InterceptSubcommands: []string{"check"},
-			},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	got := Generate("zsh", reg, minimalConfig())
-	if !strings.Contains(got, `case "${1:-}"`) {
-		t.Error("expected subcommand case statement")
-	}
-	if !strings.Contains(got, "check)") {
-		t.Error("expected check) case")
-	}
-}
-
-func TestGenerate_passthroughFlag(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {
-				Plugin:               "prettyout-ruff",
-				JSONFlags:            []string{"--output-format=json"},
-				InterceptSubcommands: []string{"check"},
-				PassthroughFlags:     []string{"--watch", "-W"},
-			},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	got := Generate("zsh", reg, minimalConfig())
-	if !strings.Contains(got, "--watch") {
-		t.Error("expected --watch passthrough check")
-	}
-}
-
-func TestGenerate_ciModeAuto_addsTTYCheck(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	cfg := minimalConfig()
-	cfg.CIMode = "auto"
-	got := Generate("zsh", reg, cfg)
-	if !strings.Contains(got, "[[ -t 1 ]]") {
-		t.Error("ci_mode=auto should add TTY check")
-	}
-}
-
-func TestGenerate_pluginOverride(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	cfg := minimalConfig()
-	cfg.Plugins["ruff"] = "/home/user/scripts/my-ruff.py"
-	got := Generate("zsh", reg, cfg)
-	if !strings.Contains(got, "/home/user/scripts/my-ruff.py") {
-		t.Error("expected plugin override path in hook")
-	}
-}
-
-func TestGenerate_stderrSeparated(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	got := Generate("zsh", reg, minimalConfig())
-	if strings.Contains(got, "2>&1") {
-		t.Error("hook must not use 2>&1 — stderr must be separated")
-	}
-	if !strings.Contains(got, "mktemp") {
-		t.Error("expected mktemp for stderr temp file")
-	}
-}
-
-func TestGenerate_bashUsePIPESTATUS(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	got := Generate("bash", reg, minimalConfig())
-	if !strings.Contains(got, "PIPESTATUS[0]") {
-		t.Error("bash hook should use PIPESTATUS[0]")
-	}
-	if strings.Contains(got, "pipestatus") {
-		t.Error("bash hook should not use zsh pipestatus")
-	}
-}
-
-func TestGenerate_ciModeNever_returnsEmpty(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
-		},
-		Launchers: map[string]registry.LauncherConfig{},
-	}
-	cfg := minimalConfig()
-	cfg.CIMode = "never"
-	got := Generate("zsh", reg, cfg)
-	if got != "" {
-		t.Errorf("ci_mode=never should return empty string, got %q", got)
-	}
-}
-
-func TestGenerate_launcherWrapper(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {
-				Plugin:               "prettyout-ruff",
-				JSONFlags:            []string{"--output-format=json"},
-				InterceptSubcommands: []string{"check"},
-				PassthroughFlags:     []string{"--watch"},
-				Launchers:            []string{"uvx"},
-			},
-		},
-		Launchers: map[string]registry.LauncherConfig{
-			"uvx": {
-				SkipFlags:  []string{"--no-cache"},
-				ValueFlags: []string{"--python"},
-			},
-		},
-	}
-	got := Generate("zsh", reg, minimalConfig())
-	if !strings.Contains(got, "uvx()") {
-		t.Error("expected uvx() wrapper function")
-	}
-	if !strings.Contains(got, "prettyout _enabled ruff") {
-		t.Error("expected ruff enabled check inside uvx wrapper")
-	}
-	if !strings.Contains(got, "--output-format=json") {
-		t.Error("expected ruff JSON flag inside uvx wrapper")
-	}
-	if !strings.Contains(got, "command uvx") {
-		t.Error("expected fallback 'command uvx'")
-	}
-}
-
-func TestGenerate_launcherVersionStrip(t *testing.T) {
-	reg := &registry.Registry{
-		Tools: map[string]registry.ToolConfig{
-			"ruff": {
-				Plugin:    "prettyout-ruff",
-				JSONFlags: []string{"--output-format=json"},
-				Launchers: []string{"uvx"},
+				Plugin:     "prettyout-ruff",
+				OutputArgs: []string{"--output-format=json"},
+				Launchers:  []string{"uvx"},
 			},
 		},
 		Launchers: map[string]registry.LauncherConfig{
 			"uvx": {},
 		},
 	}
-	got := Generate("zsh", reg, minimalConfig())
-	// Generated hook must strip @version from tool arg
-	if !strings.Contains(got, `%%@*`) {
-		t.Error("expected @version stripping (%%@*) in launcher wrapper")
+}
+
+func TestGenerate_toolOneLiner(t *testing.T) {
+	got := Generate("zsh", ruffReg(), minimalConfig())
+	want := "ruff() { prettyout _run ruff \"$@\"; }"
+	if !strings.Contains(got, want) {
+		t.Errorf("expected %q in hook output\ngot:\n%s", want, got)
 	}
 }
 
-func TestGenerate_launcherPrefixArgs(t *testing.T) {
+func TestGenerate_launcherOneLiner(t *testing.T) {
+	got := Generate("zsh", ruffReg(), minimalConfig())
+	want := "uvx() { prettyout _run uvx \"$@\"; }"
+	if !strings.Contains(got, want) {
+		t.Errorf("expected %q in hook output\ngot:\n%s", want, got)
+	}
+}
+
+func TestGenerate_ciModeNever_returnsEmpty(t *testing.T) {
+	cfg := minimalConfig()
+	cfg.CIMode = "never"
+	got := Generate("zsh", ruffReg(), cfg)
+	if got != "" {
+		t.Errorf("ci_mode=never should return empty string, got %q", got)
+	}
+}
+
+func TestGenerate_ciModeAuto_noTTYCheckInShell(t *testing.T) {
+	cfg := minimalConfig()
+	cfg.CIMode = "auto"
+	got := Generate("zsh", ruffReg(), cfg)
+	if strings.Contains(got, "[[ -t 1 ]]") {
+		t.Error("TTY check moved to runner; hook must not contain [[ -t 1 ]]")
+	}
+}
+
+func TestGenerate_noDuplicateLaunchers(t *testing.T) {
 	reg := &registry.Registry{
 		Tools: map[string]registry.ToolConfig{
-			"ruff": {
-				Plugin:    "prettyout-ruff",
-				JSONFlags: []string{"--output-format=json"},
-				Launchers: []string{"pipx"},
-			},
+			"ruff":         {Launchers: []string{"uvx"}},
+			"basedpyright": {Launchers: []string{"uvx"}},
 		},
-		Launchers: map[string]registry.LauncherConfig{
-			"pipx": {
-				PrefixArgs: []string{"run"},
-			},
-		},
+		Launchers: map[string]registry.LauncherConfig{"uvx": {}},
 	}
 	got := Generate("zsh", reg, minimalConfig())
-	if !strings.Contains(got, "pipx()") {
-		t.Error("expected pipx() wrapper function")
-	}
-	// "run" should be listed as a skip case in the generated function
-	if !strings.Contains(got, "run)") {
-		t.Error("expected 'run)' case for pipx prefix arg")
+	count := strings.Count(got, "uvx() {")
+	if count != 1 {
+		t.Errorf("uvx() should appear exactly once, got %d times", count)
 	}
 }
