@@ -129,3 +129,34 @@ func TestGenerate_stderrSeparated(t *testing.T) {
 		t.Error("expected mktemp for stderr temp file")
 	}
 }
+
+func TestGenerate_bashUsePIPESTATUS(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
+		},
+		Launchers: map[string]registry.LauncherConfig{},
+	}
+	got := Generate("bash", reg, minimalConfig())
+	if !strings.Contains(got, "PIPESTATUS[0]") {
+		t.Error("bash hook should use PIPESTATUS[0]")
+	}
+	if strings.Contains(got, "pipestatus") {
+		t.Error("bash hook should not use zsh pipestatus")
+	}
+}
+
+func TestGenerate_ciModeNever_returnsEmpty(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {Plugin: "prettyout-ruff", JSONFlags: []string{"--output-format=json"}},
+		},
+		Launchers: map[string]registry.LauncherConfig{},
+	}
+	cfg := minimalConfig()
+	cfg.CIMode = "never"
+	got := Generate("zsh", reg, cfg)
+	if got != "" {
+		t.Errorf("ci_mode=never should return empty string, got %q", got)
+	}
+}

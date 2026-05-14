@@ -10,9 +10,14 @@ import (
 
 // Generate returns shell code to be eval'd by the user's shell.
 func Generate(shell string, reg *registry.Registry, cfg *config.Config) string {
-	var b strings.Builder
+	if cfg.CIMode == "never" {
+		return ""
+	}
 
-	for _, name := range reg.SortedToolNames() {
+	var b strings.Builder
+	names := reg.SortedToolNames()
+
+	for _, name := range names {
 		tc := reg.Tools[name]
 		plugin := resolvePlugin(name, tc, cfg)
 		writeTool(&b, shell, name, tc, plugin, cfg.CIMode)
@@ -20,7 +25,7 @@ func Generate(shell string, reg *registry.Registry, cfg *config.Config) string {
 
 	// collect tools per launcher and generate launcher wrappers
 	byLauncher := map[string][]string{}
-	for _, name := range reg.SortedToolNames() {
+	for _, name := range names {
 		tc := reg.Tools[name]
 		for _, l := range tc.Launchers {
 			if _, ok := reg.Launchers[l]; ok {
@@ -88,6 +93,8 @@ func writeInterceptBlock(b *strings.Builder, shell, toolName, flags, plugin, ind
 		fmt.Fprintf(b, "%slocal _r=${pipestatus[1]}; cat \"$_ef\" >&2; rm -f \"$_ef\"; return $_r\n", indent)
 	case "bash":
 		fmt.Fprintf(b, "%slocal _r=${PIPESTATUS[0]}; cat \"$_ef\" >&2; rm -f \"$_ef\"; return $_r\n", indent)
+	default:
+		fmt.Fprintf(b, "%scat \"$_ef\" >&2; rm -f \"$_ef\"\n", indent)
 	}
 }
 
