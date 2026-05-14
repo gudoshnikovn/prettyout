@@ -1,6 +1,9 @@
 package runner
 
 import (
+	"io"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/gudoshnikov_na/prettyout/internal/config"
@@ -105,4 +108,85 @@ func firstPositional(args []string) string {
 		}
 	}
 	return ""
+}
+
+// RunFromArgs is the entry point for `prettyout _run <toolName> [args...]`.
+// It loads registry and config, calls Decide, executes, and returns the exit code.
+func RunFromArgs(args []string) int {
+	if len(args) == 0 {
+		return 1
+	}
+	toolName := args[0]
+	toolArgs := args[1:]
+
+	reg, err := registry.LoadBuiltin()
+	if err != nil {
+		return 1
+	}
+	cfg := config.Load()
+	reg.Merge(cfg.CustomTools)
+
+	decision := Decide(toolName, toolArgs, reg, cfg, isTTY())
+	return Execute(decision)
+}
+
+// Execute runs the decision: passthrough or intercepted pipe.
+func Execute(d Decision) int {
+	if !d.Intercept {
+		cmd := exec.Command(d.RealCmd, d.OriginalArgs...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			if cmd.ProcessState != nil {
+				return cmd.ProcessState.ExitCode()
+			}
+			return 1
+		}
+		return 0
+	}
+
+	stderrFile, err := os.CreateTemp("", "prettyout-stderr-*")
+	if err != nil {
+		return 1
+	}
+	defer os.Remove(stderrFile.Name())
+	defer stderrFile.Close()
+
+	toolCmd := exec.Command(d.RealCmd, d.TransformedArgs...)
+	toolCmd.Stdin = os.Stdin
+	toolCmd.Stderr = stderrFile
+
+	pluginCmd := exec.Command(d.Plugin)
+	pluginCmd.Stdin, err = toolCmd.StdoutPipe()
+	if err != nil {
+		return 1
+	}
+	pluginCmd.Stdout = os.Stdout
+	pluginCmd.Stderr = os.Stderr
+
+	if err := toolCmd.Start(); err != nil {
+		return 1
+	}
+	if err := pluginCmd.Start(); err != nil {
+		toolCmd.Wait()
+		return 1
+	}
+
+	toolCmd.Wait()
+	pluginCmd.Wait()
+
+	stderrFile.Seek(0, 0)
+	io.Copy(os.Stderr, stderrFile)
+
+	return toolCmd.ProcessState.ExitCode()
+}
+
+// isTTY reports whether stdout is a terminal.
+func isTTY() bool {
+	info, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
 }
