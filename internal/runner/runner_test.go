@@ -202,3 +202,57 @@ func TestDecide_launcher_wrongSubcommand(t *testing.T) {
 		t.Error("uvx ruff format should not intercept (only check is intercepted)")
 	}
 }
+
+func TestExecute_passthrough(t *testing.T) {
+	// passthrough: echo hello should print "hello\n" and exit 0
+	d := Decision{
+		Intercept:    false,
+		RealCmd:      "echo",
+		OriginalArgs: []string{"hello"},
+	}
+	code := Execute(d)
+	if code != 0 {
+		t.Errorf("passthrough exit code = %d, want 0", code)
+	}
+}
+
+func TestExecute_passthroughExitCode(t *testing.T) {
+	// passthrough with non-zero exit: "false" exits 1
+	d := Decision{
+		Intercept:    false,
+		RealCmd:      "false",
+		OriginalArgs: []string{},
+	}
+	code := Execute(d)
+	if code != 1 {
+		t.Errorf("false exit code = %d, want 1", code)
+	}
+}
+
+func TestExecute_intercept(t *testing.T) {
+	// intercept: pipe "echo hello" through "cat" — should exit 0
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "echo",
+		TransformedArgs: []string{"hello"},
+		Plugin:          "cat",
+	}
+	code := Execute(d)
+	if code != 0 {
+		t.Errorf("intercept exit code = %d, want 0", code)
+	}
+}
+
+func TestExecute_interceptExitCode(t *testing.T) {
+	// intercept: tool exits non-zero, plugin is cat — exit code is from tool
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "false",
+		TransformedArgs: []string{},
+		Plugin:          "cat",
+	}
+	code := Execute(d)
+	if code != 1 {
+		t.Errorf("false via intercept = %d, want 1", code)
+	}
+}

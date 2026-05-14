@@ -169,6 +169,7 @@ func Execute(d Decision) int {
 		return 1
 	}
 	if err := pluginCmd.Start(); err != nil {
+		pluginCmd.Stdin.(io.Closer).Close()
 		toolCmd.Wait()
 		return 1
 	}
