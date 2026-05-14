@@ -1,0 +1,10 @@
+plugins:
+  - name: prettyout-ruff
+    tool: ruff
+    description: Pretty output for Ruff linter
+    repo: github.com/gudoshnikov_na/prettyout/cmd/prettyout-ruff
+
+  - name: prettyout-basedpyright
+    tool: basedpyright
+    description: Pretty output for BasedPyright type checker
+    repo: github.com/gudoshnikov_na/prettyout/cmd/prettyout-basedpyright
