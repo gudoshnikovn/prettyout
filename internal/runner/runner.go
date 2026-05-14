@@ -179,7 +179,10 @@ func Execute(d Decision) int {
 	stderrFile.Seek(0, 0)
 	io.Copy(os.Stderr, stderrFile)
 
-	return toolCmd.ProcessState.ExitCode()
+	if toolCmd.ProcessState != nil {
+		return toolCmd.ProcessState.ExitCode()
+	}
+	return 1
 }
 
 // isTTY reports whether stdout is a terminal.
