@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gudoshnikov_na/prettyout/internal/config"
@@ -51,22 +50,8 @@ func printUsage() {
 }
 
 func runSetup() {
-	shell := filepath.Base(os.Getenv("SHELL"))
-	if shell == "" {
-		shell = "zsh"
-	}
-
-	var rcFile string
-	home, _ := os.UserHomeDir()
-	switch shell {
-	case "zsh":
-		rcFile = filepath.Join(home, ".zshrc")
-	case "bash":
-		rcFile = filepath.Join(home, ".bashrc")
-	default:
-		fmt.Fprintf(os.Stderr, "prettyout: unsupported shell %q (only zsh and bash)\n", shell)
-		os.Exit(1)
-	}
+	shell := shellName()
+	rcFile := rcFilePath(shell)
 
 	line := fmt.Sprintf(`eval "$(prettyout hook %s)"`, shell)
 
@@ -82,7 +67,6 @@ func runSetup() {
 		os.Exit(1)
 	}
 	defer f.Close()
-
 	fmt.Fprintf(f, "\n# prettyout\n%s\n", line)
 	fmt.Printf("Added to %s\nRun: source %s\n", rcFile, rcFile)
 }
@@ -92,7 +76,14 @@ func runHook(args []string) {
 	if len(args) > 0 {
 		shell = args[0]
 	}
-	fmt.Print(hook.Generate(shell, registry.Tools))
+	reg, err := registry.LoadBuiltin()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prettyout: failed to load registry: %v\n", err)
+		os.Exit(1)
+	}
+	cfg := config.Load()
+	reg.Merge(cfg.CustomTools)
+	fmt.Print(hook.Generate(shell, reg, cfg))
 }
 
 func runEnable(args []string) {
@@ -101,13 +92,15 @@ func runEnable(args []string) {
 		os.Exit(1)
 	}
 	tool := args[0]
-	if _, ok := registry.Tools[tool]; !ok {
+	reg, _ := registry.LoadBuiltin()
+	cfg := config.Load()
+	reg.Merge(cfg.CustomTools)
+	if _, ok := reg.Tools[tool]; !ok {
 		fmt.Fprintf(os.Stderr, "prettyout: unknown tool %q\n", tool)
-		fmt.Fprintln(os.Stderr, "Known tools:", knownTools())
+		fmt.Fprintln(os.Stderr, "Known tools:", strings.Join(reg.SortedToolNames(), ", "))
 		os.Exit(1)
 	}
-	cfg := config.Load()
-	cfg.Hooks[tool] = true
+	cfg.Enabled[tool] = true
 	config.Save(cfg)
 	fmt.Printf("Enabled prettyout for %s\n", tool)
 }
@@ -117,21 +110,21 @@ func runDisable(args []string) {
 		fmt.Fprintln(os.Stderr, "prettyout disable: tool name required")
 		os.Exit(1)
 	}
-	tool := args[0]
 	cfg := config.Load()
-	cfg.Hooks[tool] = false
+	cfg.Enabled[args[0]] = false
 	config.Save(cfg)
-	fmt.Printf("Disabled prettyout for %s\n", tool)
+	fmt.Printf("Disabled prettyout for %s\n", args[0])
 }
 
 func runList() {
+	reg, _ := registry.LoadBuiltin()
 	cfg := config.Load()
+	reg.Merge(cfg.CustomTools)
 	fmt.Println("Tool             Status")
 	fmt.Println("---------------  -------")
-	tools := registry.SortedTools()
-	for _, name := range tools {
+	for _, name := range reg.SortedToolNames() {
 		status := "disabled"
-		if cfg.Hooks[name] {
+		if cfg.Enabled[name] {
 			status = "enabled"
 		}
 		fmt.Printf("%-16s %s\n", name, status)
@@ -143,12 +136,39 @@ func runEnabled(args []string) {
 		os.Exit(1)
 	}
 	cfg := config.Load()
-	if cfg.Hooks[args[0]] {
+	if cfg.Enabled[args[0]] {
 		os.Exit(0)
 	}
 	os.Exit(1)
 }
 
-func knownTools() string {
-	return strings.Join(registry.SortedTools(), ", ")
+func shellName() string {
+	shell := shellBase(os.Getenv("SHELL"))
+	if shell == "" {
+		return "zsh"
+	}
+	return shell
+}
+
+func shellBase(path string) string {
+	for i := len(path) - 1; i >= 0; i-- {
+		if path[i] == '/' {
+			return path[i+1:]
+		}
+	}
+	return path
+}
+
+func rcFilePath(shell string) string {
+	home, _ := os.UserHomeDir()
+	switch shell {
+	case "zsh":
+		return home + "/.zshrc"
+	case "bash":
+		return home + "/.bashrc"
+	default:
+		fmt.Fprintf(os.Stderr, "prettyout: unsupported shell %q (only zsh and bash)\n", shell)
+		os.Exit(1)
+		return ""
+	}
 }
