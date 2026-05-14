@@ -213,3 +213,28 @@ func TestGenerate_launcherVersionStrip(t *testing.T) {
 		t.Error("expected @version stripping (%%@*) in launcher wrapper")
 	}
 }
+
+func TestGenerate_launcherPrefixArgs(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {
+				Plugin:    "prettyout-ruff",
+				JSONFlags: []string{"--output-format=json"},
+				Launchers: []string{"pipx"},
+			},
+		},
+		Launchers: map[string]registry.LauncherConfig{
+			"pipx": {
+				PrefixArgs: []string{"run"},
+			},
+		},
+	}
+	got := Generate("zsh", reg, minimalConfig())
+	if !strings.Contains(got, "pipx()") {
+		t.Error("expected pipx() wrapper function")
+	}
+	// "run" should be listed as a skip case in the generated function
+	if !strings.Contains(got, "run)") {
+		t.Error("expected 'run)' case for pipx prefix arg")
+	}
+}

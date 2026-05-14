@@ -103,8 +103,8 @@ func writeLauncher(b *strings.Builder, shell, launcherName string, lc registry.L
 	fmt.Fprintf(b, "\n%s() {\n", launcherName)
 	fmt.Fprintf(b, "  local _tool_arg=\"\" _skip_next=0\n")
 
-	fmt.Fprintf(b, "  local _args=(\"$@\")\n")
-	fmt.Fprintf(b, "  for _a in \"${_args[@]}\"; do\n")
+	fmt.Fprintf(b, "  # tool name: first non-flag positional arg (after skipping launcher flags)\n")
+	fmt.Fprintf(b, "  for _a in \"$@\"; do\n")
 	fmt.Fprintf(b, "    if (( _skip_next )); then _skip_next=0; continue; fi\n")
 
 	if len(lc.ValueFlags) > 0 {
@@ -154,9 +154,9 @@ func writeLauncher(b *strings.Builder, shell, launcherName string, lc registry.L
 		} else {
 			// find subcommand: first non-flag arg after tool name in original $@
 			fmt.Fprintf(b, "        local _past_tool=0 _sub=\"\"\n")
-			fmt.Fprintf(b, "        for _a in \"$@\"; do\n")
-			fmt.Fprintf(b, "          if (( _past_tool )) && [[ \"$_a\" != -* ]]; then _sub=\"$_a\"; break; fi\n")
-			fmt.Fprintf(b, "          [[ \"${_a%%%%@*}\" == %q ]] && _past_tool=1\n", toolName)
+			fmt.Fprintf(b, "        for _sa in \"$@\"; do\n")
+			fmt.Fprintf(b, "          if (( _past_tool )) && [[ \"$_sa\" != -* ]]; then _sub=\"$_sa\"; break; fi\n")
+			fmt.Fprintf(b, "          [[ \"${_sa%%%%@*}\" == %q ]] && _past_tool=1\n", toolName)
 			fmt.Fprintf(b, "        done\n")
 			fmt.Fprintf(b, "        case \"$_sub\" in\n")
 			fmt.Fprintf(b, "          %s)\n", strings.Join(tc.InterceptSubcommands, "|"))
