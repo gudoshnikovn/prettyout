@@ -99,7 +99,89 @@ func writeInterceptBlock(b *strings.Builder, shell, toolName, flags, plugin, ind
 }
 
 // writeLauncher generates a wrapper function for launchers like uvx, npx, pipx.
-// Implemented in Task 6.
 func writeLauncher(b *strings.Builder, shell, launcherName string, lc registry.LauncherConfig, tools []string, reg *registry.Registry, cfg *config.Config) {
-	// stub — implemented in Task 6
+	fmt.Fprintf(b, "\n%s() {\n", launcherName)
+	fmt.Fprintf(b, "  local _tool_arg=\"\" _skip_next=0\n")
+
+	fmt.Fprintf(b, "  local _args=(\"$@\")\n")
+	fmt.Fprintf(b, "  for _a in \"${_args[@]}\"; do\n")
+	fmt.Fprintf(b, "    if (( _skip_next )); then _skip_next=0; continue; fi\n")
+
+	if len(lc.ValueFlags) > 0 {
+		fmt.Fprintf(b, "    case \"$_a\" in\n")
+		fmt.Fprintf(b, "      %s) _skip_next=1; continue ;;\n", strings.Join(lc.ValueFlags, "|"))
+		fmt.Fprintf(b, "    esac\n")
+	}
+
+	if len(lc.SkipFlags) > 0 {
+		fmt.Fprintf(b, "    case \"$_a\" in\n")
+		fmt.Fprintf(b, "      %s) continue ;;\n", strings.Join(lc.SkipFlags, "|"))
+		fmt.Fprintf(b, "    esac\n")
+	}
+
+	if len(lc.PrefixArgs) > 0 {
+		fmt.Fprintf(b, "    case \"$_a\" in\n")
+		fmt.Fprintf(b, "      %s) continue ;;\n", strings.Join(lc.PrefixArgs, "|"))
+		fmt.Fprintf(b, "    esac\n")
+	}
+
+	fmt.Fprintf(b, "    [[ \"$_a\" == -* ]] && continue\n")
+	fmt.Fprintf(b, "    _tool_arg=\"$_a\"; break\n")
+	fmt.Fprintf(b, "  done\n")
+	fmt.Fprintf(b, "  local _toolname=\"${_tool_arg%%%%@*}\"\n") // strip @version (%%%% = literal %% in Printf)
+
+	fmt.Fprintf(b, "  case \"$_toolname\" in\n")
+
+	for _, toolName := range tools {
+		tc := reg.Tools[toolName]
+		plugin := resolvePlugin(toolName, tc, cfg)
+		flags := strings.Join(tc.JSONFlags, " ")
+
+		fmt.Fprintf(b, "    %s)\n", toolName)
+		fmt.Fprintf(b, "      if prettyout _enabled %s 2>/dev/null; then\n", toolName)
+
+		if len(tc.PassthroughFlags) > 0 {
+			fmt.Fprintf(b, "        for _ptf in \"$@\"; do\n")
+			fmt.Fprintf(b, "          case \"$_ptf\" in\n")
+			fmt.Fprintf(b, "            %s) command %s \"$@\"; return $? ;;\n",
+				strings.Join(tc.PassthroughFlags, "|"), launcherName)
+			fmt.Fprintf(b, "          esac\n")
+			fmt.Fprintf(b, "        done\n")
+		}
+
+		if len(tc.InterceptSubcommands) == 0 {
+			writeLauncherInterceptBlock(b, shell, launcherName, flags, plugin, "        ")
+		} else {
+			// find subcommand: first non-flag arg after tool name in original $@
+			fmt.Fprintf(b, "        local _past_tool=0 _sub=\"\"\n")
+			fmt.Fprintf(b, "        for _a in \"$@\"; do\n")
+			fmt.Fprintf(b, "          if (( _past_tool )) && [[ \"$_a\" != -* ]]; then _sub=\"$_a\"; break; fi\n")
+			fmt.Fprintf(b, "          [[ \"${_a%%%%@*}\" == %q ]] && _past_tool=1\n", toolName)
+			fmt.Fprintf(b, "        done\n")
+			fmt.Fprintf(b, "        case \"$_sub\" in\n")
+			fmt.Fprintf(b, "          %s)\n", strings.Join(tc.InterceptSubcommands, "|"))
+			writeLauncherInterceptBlock(b, shell, launcherName, flags, plugin, "            ")
+			fmt.Fprintf(b, "            ;;\n") // terminates the inner case arm
+			fmt.Fprintf(b, "        esac\n")
+		}
+
+		fmt.Fprintf(b, "      fi ;;\n") // close if + terminate outer case arm
+	}
+
+	fmt.Fprintf(b, "  esac\n")
+	fmt.Fprintf(b, "  command %s \"$@\"\n", launcherName)
+	fmt.Fprintf(b, "}\n")
+}
+
+func writeLauncherInterceptBlock(b *strings.Builder, shell, launcherName, flags, plugin, indent string) {
+	fmt.Fprintf(b, "%slocal _ef; _ef=$(mktemp)\n", indent)
+	fmt.Fprintf(b, "%scommand %s \"$@\" %s 2>\"$_ef\" | %s\n", indent, launcherName, flags, plugin)
+	switch shell {
+	case "zsh":
+		fmt.Fprintf(b, "%slocal _r=${pipestatus[1]}; cat \"$_ef\" >&2; rm -f \"$_ef\"; return $_r\n", indent)
+	case "bash":
+		fmt.Fprintf(b, "%slocal _r=${PIPESTATUS[0]}; cat \"$_ef\" >&2; rm -f \"$_ef\"; return $_r\n", indent)
+	default:
+		fmt.Fprintf(b, "%scat \"$_ef\" >&2; rm -f \"$_ef\"\n", indent)
+	}
 }

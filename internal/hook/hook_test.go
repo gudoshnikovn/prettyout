@@ -160,3 +160,56 @@ func TestGenerate_ciModeNever_returnsEmpty(t *testing.T) {
 		t.Errorf("ci_mode=never should return empty string, got %q", got)
 	}
 }
+
+func TestGenerate_launcherWrapper(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {
+				Plugin:               "prettyout-ruff",
+				JSONFlags:            []string{"--output-format=json"},
+				InterceptSubcommands: []string{"check"},
+				PassthroughFlags:     []string{"--watch"},
+				Launchers:            []string{"uvx"},
+			},
+		},
+		Launchers: map[string]registry.LauncherConfig{
+			"uvx": {
+				SkipFlags:  []string{"--no-cache"},
+				ValueFlags: []string{"--python"},
+			},
+		},
+	}
+	got := Generate("zsh", reg, minimalConfig())
+	if !strings.Contains(got, "uvx()") {
+		t.Error("expected uvx() wrapper function")
+	}
+	if !strings.Contains(got, "prettyout _enabled ruff") {
+		t.Error("expected ruff enabled check inside uvx wrapper")
+	}
+	if !strings.Contains(got, "--output-format=json") {
+		t.Error("expected ruff JSON flag inside uvx wrapper")
+	}
+	if !strings.Contains(got, "command uvx") {
+		t.Error("expected fallback 'command uvx'")
+	}
+}
+
+func TestGenerate_launcherVersionStrip(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {
+				Plugin:    "prettyout-ruff",
+				JSONFlags: []string{"--output-format=json"},
+				Launchers: []string{"uvx"},
+			},
+		},
+		Launchers: map[string]registry.LauncherConfig{
+			"uvx": {},
+		},
+	}
+	got := Generate("zsh", reg, minimalConfig())
+	// Generated hook must strip @version from tool arg
+	if !strings.Contains(got, `%%@*`) {
+		t.Error("expected @version stripping (%%@*) in launcher wrapper")
+	}
+}
