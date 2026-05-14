@@ -52,11 +52,13 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 			return passthrough
 		}
 		plugin := resolvePlugin(toolName, tc, cfg)
+		transformed := make([]string, len(args), len(args)+len(tc.OutputArgs))
+		copy(transformed, args)
 		return Decision{
 			Intercept:       true,
 			RealCmd:         passthrough.RealCmd,
 			OriginalArgs:    args,
-			TransformedArgs: append(args, tc.OutputArgs...),
+			TransformedArgs: append(transformed, tc.OutputArgs...),
 			Plugin:          plugin,
 		}
 	}
@@ -77,11 +79,13 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 		return passthrough
 	}
 	plugin := resolvePlugin(toolName, tc, cfg)
+	transformed := make([]string, len(args), len(args)+len(tc.OutputArgs))
+	copy(transformed, args)
 	return Decision{
 		Intercept:       true,
 		RealCmd:         toolName,
 		OriginalArgs:    args,
-		TransformedArgs: append(args, tc.OutputArgs...),
+		TransformedArgs: append(transformed, tc.OutputArgs...),
 		Plugin:          plugin,
 	}
 }
