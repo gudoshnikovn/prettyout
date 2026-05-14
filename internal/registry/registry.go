@@ -40,6 +40,9 @@ func LoadBuiltin() (*Registry, error) {
 
 // Merge adds custom tools from user config. Custom entries override builtins.
 func (r *Registry) Merge(custom map[string]ToolConfig) {
+	if r.Tools == nil {
+		r.Tools = map[string]ToolConfig{}
+	}
 	for name, cfg := range custom {
 		r.Tools[name] = cfg
 	}

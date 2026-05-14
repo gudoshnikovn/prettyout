@@ -61,3 +61,16 @@ func TestMerge_overridesBuiltin(t *testing.T) {
 		t.Error("custom tool should override builtin")
 	}
 }
+
+func TestSortedToolNames(t *testing.T) {
+	r, _ := LoadBuiltin()
+	names := r.SortedToolNames()
+	if len(names) == 0 {
+		t.Error("expected at least one tool name")
+	}
+	for i := 1; i < len(names); i++ {
+		if names[i] < names[i-1] {
+			t.Errorf("names not sorted: %q before %q", names[i-1], names[i])
+		}
+	}
+}
