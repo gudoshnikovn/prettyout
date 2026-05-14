@@ -8,6 +8,7 @@ import (
 	"github.com/gudoshnikov_na/prettyout/internal/config"
 	"github.com/gudoshnikov_na/prettyout/internal/hook"
 	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikov_na/prettyout/internal/runner"
 )
 
 func main() {
@@ -32,6 +33,8 @@ func main() {
 		runList()
 	case "_enabled":
 		runEnabled(args)
+	case "_run":
+		os.Exit(runner.RunFromArgs(args))
 	default:
 		fmt.Fprintf(os.Stderr, "prettyout: unknown command %q\n", cmd)
 		printUsage()
