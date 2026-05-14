@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -35,10 +36,10 @@ type ruleInfo struct {
 }
 
 func main() {
-	formatter.Run(format)
+	formatter.RunWithConfig("basedpyright", format)
 }
 
-func format(data []byte) error {
+func format(data []byte, cfg formatter.Config) error {
 	var r report
 	if err := json.Unmarshal(data, &r); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
@@ -52,12 +53,7 @@ func format(data []byte) error {
 			code = "StaticAnalysis"
 		}
 
-		filepath := d.File
-		if idx := strings.Index(filepath, "backend/"); idx >= 0 {
-			filepath = filepath[idx+len("backend/"):]
-		} else if idx := strings.LastIndex(filepath, "/"); idx >= 0 {
-			filepath = filepath[idx+1:]
-		}
+		filename := filepath.Base(d.File)
 
 		start := d.Range.Start.Line + 1
 		end := d.Range.End.Line + 1
@@ -66,14 +62,14 @@ func format(data []byte) error {
 			lineInfo = fmt.Sprintf("lines %d-%d", start, end)
 		}
 
-		key := filepath + "\x00" + lineInfo
+		key := filename + "\x00" + lineInfo
 
 		if _, ok := rules[code]; !ok {
 			rules[code] = &ruleInfo{items: map[string]struct{}{}}
 		}
 		ri := rules[code]
 		if ri.message == "" {
-			ri.message = d.Message
+			ri.message = truncate(d.Message, cfg.MaxMessageLength)
 		}
 		ri.items[key] = struct{}{}
 	}
@@ -86,11 +82,11 @@ func format(data []byte) error {
 
 	for _, code := range codes {
 		ri := rules[code]
-		msg := ri.message
-		if len(msg) > 100 {
-			msg = msg[:100] + "..."
+		if cfg.Colors {
+			fmt.Printf("\033[1;34m%s\033[0m - \033[1m%s\033[0m\n", code, ri.message)
+		} else {
+			fmt.Printf("%s - %s\n", code, ri.message)
 		}
-		fmt.Printf("\033[1;34m%s\033[0m - \033[1m%s\033[0m\n", code, msg)
 		fmt.Println("Affected files:")
 
 		keys := make([]string, 0, len(ri.items))
@@ -108,4 +104,11 @@ func format(data []byte) error {
 		fmt.Println("--------------------------------------------------")
 	}
 	return nil
+}
+
+func truncate(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
