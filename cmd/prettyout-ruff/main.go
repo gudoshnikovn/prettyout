@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
 )
@@ -22,15 +24,14 @@ type issue struct {
 
 type ruleInfo struct {
 	message string
-	items   map[string]struct{} // "filename|line_info"
-	order   map[string]string   // key -> display line_info
+	items   map[string]string // key (file\x00lineInfo) -> display lineInfo
 }
 
 func main() {
-	formatter.Run(format)
+	formatter.RunWithConfig("ruff", format)
 }
 
-func format(data []byte) error {
+func format(data []byte, cfg formatter.Config) error {
 	var issues []issue
 	if err := json.Unmarshal(data, &issues); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
@@ -44,12 +45,7 @@ func format(data []byte) error {
 			code = "UNKNOWN"
 		}
 
-		filename := iss.Filename
-		if idx := findIndex(filename, "backend/"); idx >= 0 {
-			filename = filename[idx+len("backend/"):]
-		} else if idx := findLastSlash(filename); idx >= 0 {
-			filename = filename[idx+1:]
-		}
+		filename := filepath.Base(iss.Filename)
 
 		lineInfo := fmt.Sprintf("line %d", iss.Location.Row)
 		if iss.Location.Row != iss.EndLocation.Row {
@@ -59,14 +55,13 @@ func format(data []byte) error {
 		key := filename + "\x00" + lineInfo
 
 		if _, ok := rules[code]; !ok {
-			rules[code] = &ruleInfo{items: map[string]struct{}{}, order: map[string]string{}}
+			rules[code] = &ruleInfo{items: map[string]string{}}
 		}
 		r := rules[code]
 		if r.message == "" {
-			r.message = iss.Message
+			r.message = truncate(iss.Message, cfg.MaxMessageLength)
 		}
-		r.items[key] = struct{}{}
-		r.order[key] = lineInfo
+		r.items[key] = lineInfo
 	}
 
 	codes := make([]string, 0, len(rules))
@@ -77,7 +72,11 @@ func format(data []byte) error {
 
 	for _, code := range codes {
 		r := rules[code]
-		fmt.Printf("\033[1;33m%s\033[0m - \033[1m%s\033[0m\n", code, r.message)
+		if cfg.Colors {
+			fmt.Printf("\033[1;33m%s\033[0m - \033[1m%s\033[0m\n", code, r.message)
+		} else {
+			fmt.Printf("%s - %s\n", code, r.message)
+		}
 		fmt.Println("Affected files:")
 
 		keys := make([]string, 0, len(r.items))
@@ -87,7 +86,7 @@ func format(data []byte) error {
 		sort.Strings(keys)
 
 		for _, key := range keys {
-			sep := findNull(key)
+			sep := strings.IndexByte(key, 0)
 			file := key[:sep]
 			line := key[sep+1:]
 			fmt.Printf("  - %s — %s\n", file, line)
@@ -97,29 +96,9 @@ func format(data []byte) error {
 	return nil
 }
 
-func findIndex(s, sub string) int {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
+func truncate(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
 	}
-	return -1
-}
-
-func findLastSlash(s string) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == '/' {
-			return i
-		}
-	}
-	return -1
-}
-
-func findNull(s string) int {
-	for i, c := range s {
-		if c == 0 {
-			return i
-		}
-	}
-	return len(s)
+	return s[:max] + "..."
 }
