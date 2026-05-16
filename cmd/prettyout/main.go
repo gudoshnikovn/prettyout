@@ -45,6 +45,10 @@ func main() {
 		runUpdate(args)
 	case "upgrade":
 		runUpgrade()
+	case "completion":
+		runCompletion(args)
+	case "_completions":
+		runCompletions(args)
 	default:
 		fmt.Fprintf(os.Stderr, "prettyout: unknown command %q\n", cmd)
 		printUsage()
@@ -59,7 +63,13 @@ func printUsage() {
   prettyout enable <tool>      Enable pretty output for a tool
   prettyout disable <tool>     Disable pretty output for a tool
   prettyout list               Show all tools and their status
-  prettyout _enabled <tool>    Exit 0 if tool is enabled (internal)`)
+  prettyout list --available   Show all registry tools with install status
+  prettyout status             Show prettyout status overview
+  prettyout doctor             Run health checks
+  prettyout install <tool>     Install plugin binary for a tool
+  prettyout update [tool]      Update installed plugin(s)
+  prettyout upgrade            Upgrade prettyout itself
+  prettyout completion <shell> Print shell completion script (zsh|bash)`)
 }
 
 func runSetup() {
