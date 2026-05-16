@@ -30,7 +30,7 @@ func main() {
 	case "disable":
 		runDisable(args)
 	case "list":
-		runList()
+		runList(args)
 	case "_enabled":
 		runEnabled(args)
 	case "_run":
@@ -98,21 +98,6 @@ func runDisable(args []string) {
 	cfg.Enabled[args[0]] = false
 	config.Save(cfg)
 	fmt.Printf("Disabled prettyout for %s\n", args[0])
-}
-
-func runList() {
-	reg, _ := registry.LoadBuiltin()
-	cfg := config.Load()
-	reg.Merge(cfg.CustomTools)
-	fmt.Println("Tool             Status")
-	fmt.Println("---------------  -------")
-	for _, name := range reg.SortedToolNames() {
-		status := "disabled"
-		if cfg.Enabled[name] {
-			status = "enabled"
-		}
-		fmt.Printf("%-16s %s\n", name, status)
-	}
 }
 
 func runEnabled(args []string) {
