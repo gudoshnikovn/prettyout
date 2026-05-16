@@ -205,3 +205,64 @@ func TestHasOutputArgConflict_noConflict(t *testing.T) {
 		t.Error("no conflict expected")
 	}
 }
+
+func TestHasOutputArgConflict_noFalsePositive(t *testing.T) {
+	// --output-format-extra is a different flag, should not conflict with --output-format key
+	if hasOutputArgConflict([]string{"--output-format=json"}, []string{"--output-format-extra=foo"}) {
+		t.Error("different flag with same prefix should not conflict")
+	}
+}
+
+func TestExecute_passthrough(t *testing.T) {
+	// passthrough: echo hello should print "hello\n" and exit 0
+	d := Decision{
+		Intercept:    false,
+		RealCmd:      "echo",
+		OriginalArgs: []string{"hello"},
+	}
+	code := Execute(d)
+	if code != 0 {
+		t.Errorf("passthrough exit code = %d, want 0", code)
+	}
+}
+
+func TestExecute_passthroughExitCode(t *testing.T) {
+	// passthrough with non-zero exit: "false" exits 1
+	d := Decision{
+		Intercept:    false,
+		RealCmd:      "false",
+		OriginalArgs: []string{},
+	}
+	code := Execute(d)
+	if code != 1 {
+		t.Errorf("false exit code = %d, want 1", code)
+	}
+}
+
+func TestExecute_intercept(t *testing.T) {
+	// intercept: pipe "echo hello" through "cat" — should exit 0
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "echo",
+		TransformedArgs: []string{"hello"},
+		Plugin:          "cat",
+	}
+	code := Execute(d)
+	if code != 0 {
+		t.Errorf("intercept exit code = %d, want 0", code)
+	}
+}
+
+func TestExecute_interceptExitCode(t *testing.T) {
+	// intercept: tool exits non-zero, plugin is cat — exit code is from tool
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "false",
+		TransformedArgs: []string{},
+		Plugin:          "cat",
+	}
+	code := Execute(d)
+	if code != 1 {
+		t.Errorf("false via intercept = %d, want 1", code)
+	}
+}

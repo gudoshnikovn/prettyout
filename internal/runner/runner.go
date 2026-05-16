@@ -173,7 +173,7 @@ func hasOutputArgConflict(outputArgs, userArgs []string) bool {
 		if i := strings.IndexByte(oa, '='); i >= 0 {
 			key := oa[:i]
 			for _, ua := range userArgs {
-				if strings.HasPrefix(ua, key) {
+				if ua == key || strings.HasPrefix(ua, key+"=") {
 					return true
 				}
 			}
