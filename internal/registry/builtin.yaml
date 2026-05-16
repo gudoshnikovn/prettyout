@@ -19,7 +19,11 @@ tools:
     output_args: [--output-format=json]
     passthrough_flags: [--watch, -W]
     launchers: [uvx, pipx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-ruff
   basedpyright:
     plugin: prettyout-basedpyright
     output_args: [--outputjson]
     launchers: [uvx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-basedpyright

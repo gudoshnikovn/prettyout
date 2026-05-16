@@ -74,3 +74,16 @@ func TestSortedToolNames(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinHasInstallGo(t *testing.T) {
+	r, err := LoadBuiltin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Tools["ruff"].Install.Go == "" {
+		t.Error("ruff should have install.go set")
+	}
+	if r.Tools["basedpyright"].Install.Go == "" {
+		t.Error("basedpyright should have install.go set")
+	}
+}

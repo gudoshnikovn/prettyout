@@ -17,12 +17,17 @@ type LauncherConfig struct {
 	ToolPosition string   `yaml:"tool_position"`
 }
 
+type InstallConfig struct {
+	Go string `yaml:"go"`
+}
+
 type ToolConfig struct {
-	Plugin               string   `yaml:"plugin"`
-	InterceptSubcommands []string `yaml:"intercept_subcommands"`
-	OutputArgs           []string `yaml:"output_args"`
-	PassthroughFlags     []string `yaml:"passthrough_flags"`
-	Launchers            []string `yaml:"launchers"`
+	Plugin               string        `yaml:"plugin"`
+	InterceptSubcommands []string      `yaml:"intercept_subcommands"`
+	OutputArgs           []string      `yaml:"output_args"`
+	PassthroughFlags     []string      `yaml:"passthrough_flags"`
+	Launchers            []string      `yaml:"launchers"`
+	Install              InstallConfig `yaml:"install"`
 }
 
 type Registry struct {
