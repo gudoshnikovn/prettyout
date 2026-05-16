@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -20,23 +19,57 @@ type diagRange struct {
 }
 
 type diagnostic struct {
-	Rule    string    `json:"rule"`
-	File    string    `json:"file"`
-	Message string    `json:"message"`
-	Range   diagRange `json:"range"`
+	Rule     string    `json:"rule"`
+	File     string    `json:"file"`
+	Severity string    `json:"severity"`
+	Message  string    `json:"message"`
+	Range    diagRange `json:"range"`
 }
 
 type report struct {
 	GeneralDiagnostics []diagnostic `json:"generalDiagnostics"`
 }
 
-type ruleInfo struct {
-	message string
-	items   map[string]struct{}
-}
-
 func main() {
 	formatter.RunWithConfig("basedpyright", format)
+}
+
+const divider = "────────────────────────────────────────────────"
+
+// severityRank returns a numeric rank for comparing severities (higher = more severe).
+func severityRank(sev string) int {
+	switch sev {
+	case "error", "ERROR", "fatal", "FATAL":
+		return 3
+	case "warning", "WARNING", "warn", "WARN":
+		return 2
+	case "information", "info", "INFO":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// severityLabel returns the bracket label for a severity string.
+func severityLabel(sev string) string {
+	switch sev {
+	case "error", "ERROR", "fatal", "FATAL":
+		return "ERROR"
+	case "warning", "WARNING", "warn", "WARN":
+		return "WARN"
+	case "information", "info", "INFO":
+		return "INFO"
+	default:
+		upper := ""
+		for _, c := range sev {
+			if c >= 'a' && c <= 'z' {
+				upper += string(c - 32)
+			} else {
+				upper += string(c)
+			}
+		}
+		return upper
+	}
 }
 
 func format(data []byte, cfg formatter.Config) error {
@@ -45,65 +78,198 @@ func format(data []byte, cfg formatter.Config) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	rules := map[string]*ruleInfo{}
+	if cfg.GroupBy == "file" {
+		return formatByFile(r.GeneralDiagnostics, cfg)
+	}
+	return formatByRule(r.GeneralDiagnostics, cfg)
+}
 
-	for _, d := range r.GeneralDiagnostics {
+type fileEntry struct {
+	file string
+	line int
+}
+
+type ruleGroup struct {
+	message     string
+	maxSeverity string
+	files       map[string][]int // path -> sorted lines
+	fileOrder   []string
+}
+
+func formatByRule(diags []diagnostic, cfg formatter.Config) error {
+	rules := map[string]*ruleGroup{}
+	var ruleOrder []string
+
+	for _, d := range diags {
 		code := d.Rule
 		if code == "" {
 			code = "StaticAnalysis"
 		}
-
-		filename := filepath.Base(d.File)
-
-		start := d.Range.Start.Line + 1
-		end := d.Range.End.Line + 1
-		lineInfo := fmt.Sprintf("line %d", start)
-		if start != end {
-			lineInfo = fmt.Sprintf("lines %d-%d", start, end)
-		}
-
-		key := filename + "\x00" + lineInfo
+		path := formatter.ResolvePath(d.File, cfg)
+		line := d.Range.Start.Line + 1
 
 		if _, ok := rules[code]; !ok {
-			rules[code] = &ruleInfo{items: map[string]struct{}{}}
+			rules[code] = &ruleGroup{files: map[string][]int{}}
+			ruleOrder = append(ruleOrder, code)
 		}
-		ri := rules[code]
-		if ri.message == "" {
-			ri.message = truncate(d.Message, cfg.MaxMessageLength)
+		rg := rules[code]
+		if rg.message == "" {
+			rg.message = truncate(d.Message, cfg.MaxMessageLength)
 		}
-		ri.items[key] = struct{}{}
+		if severityRank(d.Severity) > severityRank(rg.maxSeverity) {
+			rg.maxSeverity = d.Severity
+		}
+		if _, ok := rg.files[path]; !ok {
+			rg.fileOrder = append(rg.fileOrder, path)
+		}
+		rg.files[path] = append(rg.files[path], line)
 	}
 
-	codes := make([]string, 0, len(rules))
-	for code := range rules {
-		codes = append(codes, code)
-	}
-	sort.Strings(codes)
+	sort.Strings(ruleOrder)
 
-	for _, code := range codes {
-		ri := rules[code]
+	totalFiles := countDistinctFiles(diags, cfg)
+
+	for _, code := range ruleOrder {
+		rg := rules[code]
+		count := 0
+		for _, lines := range rg.files {
+			count += len(lines)
+		}
+
+		sevLabel := severityLabel(rg.maxSeverity)
+		sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 		if cfg.Colors {
-			fmt.Printf("\033[1;34m%s\033[0m - \033[1m%s\033[0m\n", code, ri.message)
+			color := formatter.SeverityColor(rg.maxSeverity, true)
+			reset := "\033[0m"
+			if color != "" {
+				sevPrefix = fmt.Sprintf("%s[%s]%s ", color, sevLabel, reset)
+			}
+			fmt.Printf("%s\033[1;34m%s\033[0m (%d) — \033[1m%s\033[0m\n", sevPrefix, code, count, rg.message)
 		} else {
-			fmt.Printf("%s - %s\n", code, ri.message)
+			fmt.Printf("%s%s (%d) — %s\n", sevPrefix, code, count, rg.message)
 		}
 		fmt.Println("Affected files:")
 
-		keys := make([]string, 0, len(ri.items))
-		for k := range ri.items {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		sortedFiles := make([]string, len(rg.fileOrder))
+		copy(sortedFiles, rg.fileOrder)
+		sort.Strings(sortedFiles)
 
-		for _, key := range keys {
-			sep := strings.IndexByte(key, 0)
-			file := key[:sep]
-			line := key[sep+1:]
-			fmt.Printf("  - %s — %s\n", file, line)
+		for _, path := range sortedFiles {
+			lines := rg.files[path]
+			sort.Ints(lines)
+			lineLabel := formatLines(lines)
+			fmt.Printf("  - %s — %s\n", path, lineLabel)
 		}
-		fmt.Println("--------------------------------------------------")
+		fmt.Println(divider)
 	}
+
+	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(ruleOrder), totalFiles)
 	return nil
+}
+
+type issueEntry struct {
+	code     string
+	severity string
+	message  string
+	line     int
+}
+
+func formatByFile(diags []diagnostic, cfg formatter.Config) error {
+	type fileGroup struct {
+		path   string
+		issues []issueEntry
+	}
+
+	files := map[string]*fileGroup{}
+	var fileOrder []string
+
+	for _, d := range diags {
+		code := d.Rule
+		if code == "" {
+			code = "StaticAnalysis"
+		}
+		path := formatter.ResolvePath(d.File, cfg)
+		line := d.Range.Start.Line + 1
+
+		if _, ok := files[path]; !ok {
+			files[path] = &fileGroup{path: path}
+			fileOrder = append(fileOrder, path)
+		}
+		files[path].issues = append(files[path].issues, issueEntry{
+			code:     code,
+			severity: d.Severity,
+			message:  truncate(d.Message, cfg.MaxMessageLength),
+			line:     line,
+		})
+	}
+
+	sort.Strings(fileOrder)
+
+	ruleSeen := map[string]struct{}{}
+	for _, d := range diags {
+		code := d.Rule
+		if code == "" {
+			code = "StaticAnalysis"
+		}
+		ruleSeen[code] = struct{}{}
+	}
+
+	for _, path := range fileOrder {
+		fg := files[path]
+		sort.Slice(fg.issues, func(i, j int) bool {
+			return fg.issues[i].line < fg.issues[j].line
+		})
+
+		fmt.Printf("%s — %d issues\n", fg.path, len(fg.issues))
+
+		lastCode := ""
+		for _, e := range fg.issues {
+			sevLabel := severityLabel(e.severity)
+			sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
+			if cfg.Colors {
+				color := formatter.SeverityColor(e.severity, true)
+				reset := "\033[0m"
+				if color != "" {
+					sevPrefix = fmt.Sprintf("%s[%s]%s ", color, sevLabel, reset)
+				}
+			}
+
+			msg := ""
+			if e.code != lastCode {
+				msg = "  — " + e.message
+				lastCode = e.code
+			}
+
+			if cfg.Colors {
+				fmt.Printf("  %s\033[1;34m%s\033[0m  line %d%s\n", sevPrefix, e.code, e.line, msg)
+			} else {
+				fmt.Printf("  %s%s  line %d%s\n", sevPrefix, e.code, e.line, msg)
+			}
+		}
+		fmt.Println(divider)
+	}
+
+	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(ruleSeen), len(fileOrder))
+	return nil
+}
+
+func countDistinctFiles(diags []diagnostic, cfg formatter.Config) int {
+	seen := map[string]struct{}{}
+	for _, d := range diags {
+		seen[formatter.ResolvePath(d.File, cfg)] = struct{}{}
+	}
+	return len(seen)
+}
+
+func formatLines(lines []int) string {
+	if len(lines) == 1 {
+		return fmt.Sprintf("line %d", lines[0])
+	}
+	parts := make([]string, len(lines))
+	for i, l := range lines {
+		parts[i] = fmt.Sprintf("%d", l)
+	}
+	return "lines " + strings.Join(parts, ", ")
 }
 
 func truncate(s string, max int) string {
