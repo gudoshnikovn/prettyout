@@ -35,6 +35,8 @@ func main() {
 		runEnabled(args)
 	case "_run":
 		os.Exit(runner.RunFromArgs(args))
+	case "status":
+		runStatus()
 	default:
 		fmt.Fprintf(os.Stderr, "prettyout: unknown command %q\n", cmd)
 		printUsage()

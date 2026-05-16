@@ -109,6 +109,11 @@ func Save(cfg *Config) {
 	}
 }
 
+// GlobalConfigPath returns the path to the user's global prettyout config file.
+func GlobalConfigPath() string {
+	return globalConfigPath()
+}
+
 func globalConfigPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "prettyout", "config.yaml")
