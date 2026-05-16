@@ -39,6 +39,12 @@ func main() {
 		runStatus()
 	case "doctor":
 		runDoctor()
+	case "install":
+		runInstall(args)
+	case "update":
+		runUpdate(args)
+	case "upgrade":
+		runUpgrade()
 	default:
 		fmt.Fprintf(os.Stderr, "prettyout: unknown command %q\n", cmd)
 		printUsage()
