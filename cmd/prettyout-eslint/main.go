@@ -125,7 +125,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", totalIssues, len(rules), len(totalFiles))
+	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
 	return nil
 }
 
@@ -153,7 +153,7 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 			totalIssues++
 		}
 		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d issues\n", fp, len(entries))
+		fmt.Printf("%s — %d %s\n", fp, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
 		for _, e := range entries {
 			msg := ""
@@ -167,7 +167,7 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 		fileCount++
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", totalIssues, len(allRules), fileCount)
+	fmt.Println(formatter.Summary(totalIssues, len(allRules), fileCount))
 	return nil
 }
 

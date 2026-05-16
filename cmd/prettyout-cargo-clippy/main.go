@@ -167,7 +167,7 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(items), len(rules), len(totalFiles))
+	fmt.Println(formatter.Summary(len(items), len(rules), len(totalFiles)))
 	return nil
 }
 
@@ -199,7 +199,7 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 	for _, f := range fileOrder {
 		entries := fileMap[f]
 		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d issues\n", f, len(entries))
+		fmt.Printf("%s — %d %s\n", f, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
 		for _, e := range entries {
 			msg := ""
@@ -216,7 +216,7 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(items), len(allRules), len(fileOrder))
+	fmt.Println(formatter.Summary(len(items), len(allRules), len(fileOrder)))
 	return nil
 }
 

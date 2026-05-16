@@ -115,7 +115,7 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", totalIssues, len(rules), len(totalFiles))
+	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
 	return nil
 }
 
@@ -162,7 +162,7 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 	for _, file := range fileOrder {
 		entries := fileMap[file]
 		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d issues\n", file, len(entries))
+		fmt.Printf("%s — %d %s\n", file, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
 		for _, e := range entries {
 			msg := ""
@@ -175,7 +175,7 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", totalIssues, len(rules), len(fileOrder))
+	fmt.Println(formatter.Summary(totalIssues, len(rules), len(fileOrder)))
 	return nil
 }
 

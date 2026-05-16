@@ -167,7 +167,7 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		fmt.Println(divider)
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(ruleOrder), totalFiles)
+	fmt.Println(formatter.Summary(len(diags), len(ruleOrder), totalFiles))
 	return nil
 }
 
@@ -224,7 +224,7 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 			return fg.issues[i].line < fg.issues[j].line
 		})
 
-		fmt.Printf("%s — %d issues\n", fg.path, len(fg.issues))
+		fmt.Printf("%s — %d %s\n", fg.path, len(fg.issues), formatter.Plural(len(fg.issues), "issue", "issues"))
 
 		lastCode := ""
 		for _, e := range fg.issues {
@@ -253,7 +253,7 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 		fmt.Println(divider)
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(ruleSeen), len(fileOrder))
+	fmt.Println(formatter.Summary(len(diags), len(ruleSeen), len(fileOrder)))
 	return nil
 }
 

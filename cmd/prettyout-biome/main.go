@@ -126,7 +126,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(rules), len(totalFiles))
+	fmt.Println(formatter.Summary(len(diags), len(rules), len(totalFiles)))
 	return nil
 }
 
@@ -159,7 +159,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 
 	for _, file := range fileOrder {
 		entries := fileMap[file]
-		fmt.Printf("%s — %d issues\n", file, len(entries))
+		fmt.Printf("%s — %d %s\n", file, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
 		for _, e := range entries {
 			msg := ""
@@ -172,7 +172,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Printf("%d issues · %d rules · %d files\n", len(diags), len(allRules), len(fileOrder))
+	fmt.Println(formatter.Summary(len(diags), len(allRules), len(fileOrder)))
 	return nil
 }
 
