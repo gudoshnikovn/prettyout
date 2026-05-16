@@ -273,6 +273,9 @@ func formatLines(lines []int) string {
 }
 
 func truncate(s string, max int) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
 	if max <= 0 || len(s) <= max {
 		return s
 	}

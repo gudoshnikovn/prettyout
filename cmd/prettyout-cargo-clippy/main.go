@@ -161,11 +161,7 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 			if len(ls) == 0 {
 				fmt.Printf("  - %s\n", f)
 			} else {
-				lineStrs := make([]string, len(ls))
-				for i, l := range ls {
-					lineStrs[i] = fmt.Sprintf("%d", l)
-				}
-				fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+				fmt.Printf("  - %s — %s\n", f, formatLines(ls))
 			}
 		}
 		fmt.Println("────────────────────────────────────────────────")
@@ -222,6 +218,17 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 
 	fmt.Printf("%d issues · %d rules · %d files\n", len(items), len(allRules), len(fileOrder))
 	return nil
+}
+
+func formatLines(ls []int) string {
+	if len(ls) == 1 {
+		return fmt.Sprintf("line %d", ls[0])
+	}
+	parts := make([]string, len(ls))
+	for i, l := range ls {
+		parts[i] = fmt.Sprintf("%d", l)
+	}
+	return "lines " + strings.Join(parts, ", ")
 }
 
 func truncate(s string, max int) string {
