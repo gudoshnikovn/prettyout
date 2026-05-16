@@ -92,7 +92,7 @@ type fileEntry struct {
 type ruleGroup struct {
 	message     string
 	maxSeverity string
-	files       map[string][]int // path -> sorted lines
+	files       map[string]map[int]struct{} // path -> set of lines (deduped)
 	fileOrder   []string
 }
 
@@ -109,7 +109,7 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		line := d.Range.Start.Line + 1
 
 		if _, ok := rules[code]; !ok {
-			rules[code] = &ruleGroup{files: map[string][]int{}}
+			rules[code] = &ruleGroup{files: map[string]map[int]struct{}{}}
 			ruleOrder = append(ruleOrder, code)
 		}
 		rg := rules[code]
@@ -121,8 +121,9 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		}
 		if _, ok := rg.files[path]; !ok {
 			rg.fileOrder = append(rg.fileOrder, path)
+			rg.files[path] = map[int]struct{}{}
 		}
-		rg.files[path] = append(rg.files[path], line)
+		rg.files[path][line] = struct{}{}
 	}
 
 	sort.Strings(ruleOrder)
@@ -155,10 +156,13 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		sort.Strings(sortedFiles)
 
 		for _, path := range sortedFiles {
-			lines := rg.files[path]
+			lineSet := rg.files[path]
+			lines := make([]int, 0, len(lineSet))
+			for l := range lineSet {
+				lines = append(lines, l)
+			}
 			sort.Ints(lines)
-			lineLabel := formatLines(lines)
-			fmt.Printf("  - %s — %s\n", path, lineLabel)
+			fmt.Printf("  - %s — %s\n", path, formatLines(lines))
 		}
 		fmt.Println(divider)
 	}
