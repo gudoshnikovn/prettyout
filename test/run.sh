@@ -158,8 +158,11 @@ def add(a: int, b: int) -> int:
 PY
 
     OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
-    check "errors: shows rule code"   "$OUT" "issue"
-    check "errors: shows file"        "$OUT" "errors.py"
+    check "errors: shows rule code"    "$OUT" "assignment"
+    check "errors: shows file"         "$OUT" "errors.py"
+    check "errors: shows issue count"  "$OUT" "issue"
+    check "errors: shows summary"      "$OUT" "rules"
+    check "errors: singular line"      "$OUT" "line "
 
     OUT=$(mypy --output=json clean.py 2>/dev/null | prettyout-mypy || true)
     check "clean: 0 issues" "$OUT" "0 issues"
@@ -167,6 +170,16 @@ PY
     with_config mypy group_by file
     OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
     check "group_by:file: shows filename" "$OUT" "errors.py"
+    no_config
+
+    with_config mypy colors false
+    OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
+
+    with_config mypy max_message_length 15
+    OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
+    check "max_message_length: message truncated" "$OUT" "..."
     no_config
 else
     skip "mypy"

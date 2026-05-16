@@ -18,9 +18,9 @@ type mypyMsg struct {
 }
 
 type ruleEntry struct {
-	severity string
-	message  string
-	fileLines map[string][]int
+	severity  string
+	message   string
+	fileLines map[string]map[int]struct{}
 }
 
 func main() {
@@ -66,7 +66,7 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 	for _, m := range msgs {
 		rule := codeStr(m)
 		if _, ok := rules[rule]; !ok {
-			rules[rule] = &ruleEntry{fileLines: map[string][]int{}}
+			rules[rule] = &ruleEntry{fileLines: map[string]map[int]struct{}{}}
 			ruleOrder = append(ruleOrder, rule)
 		}
 		r := rules[rule]
@@ -74,7 +74,10 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 			r.message = truncate(m.Message, cfg.MaxMessageLength)
 			r.severity = m.Severity
 		}
-		r.fileLines[m.File] = append(r.fileLines[m.File], m.Line)
+		if r.fileLines[m.File] == nil {
+			r.fileLines[m.File] = map[int]struct{}{}
+		}
+		r.fileLines[m.File][m.Line] = struct{}{}
 	}
 
 	sort.Strings(ruleOrder)
@@ -87,8 +90,8 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 	for _, rule := range ruleOrder {
 		r := rules[rule]
 		count := 0
-		for _, lines := range r.fileLines {
-			count += len(lines)
+		for _, lineSet := range r.fileLines {
+			count += len(lineSet)
 		}
 		col := formatter.SeverityColor(r.severity, cfg.Colors)
 		reset := ""
@@ -109,13 +112,18 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 		sort.Strings(files)
 
 		for _, f := range files {
-			ls := r.fileLines[f]
+			lineSet := r.fileLines[f]
+			ls := make([]int, 0, len(lineSet))
+			for l := range lineSet {
+				ls = append(ls, l)
+			}
 			sort.Ints(ls)
 			lineStrs := make([]string, len(ls))
 			for i, l := range ls {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			lineWord := formatter.Plural(len(ls), "line", "lines")
+			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
