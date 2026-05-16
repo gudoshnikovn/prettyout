@@ -27,3 +27,87 @@ tools:
     launchers: [uvx]
     install:
       go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-basedpyright
+  golangci-lint:
+    plugin: prettyout-golangci
+    intercept_subcommands: [run]
+    output_args: [--out-format=json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-golangci
+  eslint:
+    plugin: prettyout-eslint
+    output_args: [--format=json]
+    launchers: [npx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-eslint
+  biome:
+    plugin: prettyout-biome
+    intercept_subcommands: [check, lint, ci]
+    output_args: [--reporter=json]
+    launchers: [npx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-biome
+  mypy:
+    plugin: prettyout-mypy
+    output_args: [--output=json]
+    launchers: [uvx, pipx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-mypy
+  bandit:
+    plugin: prettyout-bandit
+    output_args: [-f, json]
+    launchers: [uvx, pipx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-bandit
+  pylint:
+    plugin: prettyout-pylint
+    output_args: [--output-format=json]
+    launchers: [uvx, pipx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-pylint
+  shellcheck:
+    plugin: prettyout-shellcheck
+    output_args: [--format=json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-shellcheck
+  hadolint:
+    plugin: prettyout-hadolint
+    output_args: [--format=json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-hadolint
+  cargo:
+    plugin: prettyout-cargo-clippy
+    intercept_subcommands: [clippy]
+    output_args: [--message-format=json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-cargo-clippy
+  semgrep:
+    plugin: prettyout-semgrep
+    intercept_subcommands: [scan, ci]
+    output_args: [--json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-semgrep
+  trivy:
+    plugin: prettyout-trivy
+    intercept_subcommands: [image, fs, repo, config]
+    output_args: [--format=json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-trivy
+  npm:
+    plugin: prettyout-npm-audit
+    intercept_subcommands: [audit]
+    output_args: [--json]
+    launchers: []
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-npm-audit
+  stylelint:
+    plugin: prettyout-stylelint
+    output_args: [--formatter=json]
+    launchers: [npx]
+    install:
+      go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-stylelint
