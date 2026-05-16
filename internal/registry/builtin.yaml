@@ -16,10 +16,10 @@ tools:
   ruff:
     plugin: prettyout-ruff
     intercept_subcommands: [check]
-    json_flags: [--output-format=json]
+    output_args: [--output-format=json]
     passthrough_flags: [--watch, -W]
     launchers: [uvx, pipx]
   basedpyright:
     plugin: prettyout-basedpyright
-    json_flags: [--outputjson]
+    output_args: [--outputjson]
     launchers: [uvx]

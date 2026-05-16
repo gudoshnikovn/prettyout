@@ -47,7 +47,7 @@ func TestLoad_customTools(t *testing.T) {
 custom_tools:
   mycooltool:
     plugin: ~/scripts/mycooltool-fmt
-    json_flags: [--json]
+    output_args: [--json]
 `)
 	cfg := loadFile(path)
 	if _, ok := cfg.CustomTools["mycooltool"]; !ok {

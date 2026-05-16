@@ -20,7 +20,7 @@ type LauncherConfig struct {
 type ToolConfig struct {
 	Plugin               string   `yaml:"plugin"`
 	InterceptSubcommands []string `yaml:"intercept_subcommands"`
-	JSONFlags            []string `yaml:"json_flags"`
+	OutputArgs           []string `yaml:"output_args"`
 	PassthroughFlags     []string `yaml:"passthrough_flags"`
 	Launchers            []string `yaml:"launchers"`
 }
