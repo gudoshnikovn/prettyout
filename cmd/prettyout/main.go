@@ -37,6 +37,8 @@ func main() {
 		os.Exit(runner.RunFromArgs(args))
 	case "status":
 		runStatus()
+	case "doctor":
+		runDoctor()
 	default:
 		fmt.Fprintf(os.Stderr, "prettyout: unknown command %q\n", cmd)
 		printUsage()
