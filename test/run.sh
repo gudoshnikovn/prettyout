@@ -149,8 +149,8 @@ if has_tool mypy; then
 
     cat > errors.py << 'PY'
 x: int = "not an int"
-def f(a: int) -> str:
-    return a
+result = x + "hello"
+y: int = "also bad"
 PY
     cat > clean.py << 'PY'
 def add(a: int, b: int) -> int:
@@ -162,7 +162,8 @@ PY
     check "errors: shows file"         "$OUT" "errors.py"
     check "errors: shows issue count"  "$OUT" "issue"
     check "errors: shows summary"      "$OUT" "rules"
-    check "errors: singular line"      "$OUT" "line "
+    check "errors: rule count format"  "$OUT" " ("
+    check "errors: summary separator"  "$OUT" " · "
 
     OUT=$(mypy --output=json clean.py 2>/dev/null | prettyout-mypy || true)
     check "clean: 0 issues" "$OUT" "0 issues"
@@ -170,6 +171,11 @@ PY
     with_config mypy group_by file
     OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
     check "group_by:file: shows filename" "$OUT" "errors.py"
+    no_config
+
+    with_config mypy group_by rule
+    OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
+    check "group_by:rule: collapses lines" "$OUT" "lines 1, 3"
     no_config
 
     with_config mypy colors false
