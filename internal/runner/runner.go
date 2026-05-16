@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -11,10 +12,6 @@ import (
 	"github.com/gudoshnikov_na/prettyout/internal/registry"
 )
 
-// Decision describes what prettyout _run should do.
-// When Intercept is false, run RealCmd with OriginalArgs unchanged.
-// When Intercept is true, run RealCmd with TransformedArgs (output_args appended)
-// and pipe its stdout through Plugin.
 type Decision struct {
 	Intercept       bool
 	RealCmd         string
@@ -23,38 +20,84 @@ type Decision struct {
 	Plugin          string
 }
 
-// Decide inspects toolName and args against the registry and config to determine
-// whether to intercept. isTTY should be true when os.Stdout is a terminal.
-func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.Config, isTTY bool) Decision {
+func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.Config, isTTY bool, debug bool) Decision {
 	passthrough := Decision{RealCmd: toolName, OriginalArgs: args}
 
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] tool=%s args=%v\n", toolName, args)
+	}
+
 	if cfg.CIMode == "never" {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] ci_mode=never → passthrough\n")
+		}
 		return passthrough
 	}
 	if cfg.CIMode == "auto" && !isTTY {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] ci_mode=auto tty=false → passthrough\n")
+		}
 		return passthrough
 	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] ci_mode=%s tty=%v → proceeding\n", cfg.CIMode, isTTY)
+	}
 
-	// Launcher path (e.g. uvx, pipx, npx)
 	if lc, isLauncher := reg.Launchers[toolName]; isLauncher {
-		toolName, subcommand := launcher.ExtractTool(lc, args)
-		if toolName == "" {
+		innerName, subcommand := launcher.ExtractTool(lc, args)
+		if innerName == "" {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] launcher: tool not found in args → passthrough\n")
+			}
 			return passthrough
 		}
-		tc, ok := reg.Tools[toolName]
+		tc, ok := reg.Tools[innerName]
 		if !ok {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] launcher: %s not in registry → passthrough\n", innerName)
+			}
 			return passthrough
 		}
-		if !cfg.Enabled[toolName] {
+		if !cfg.Enabled[innerName] {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] enabled=false → passthrough\n")
+			}
 			return passthrough
+		}
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] enabled=true\n")
 		}
 		if tc.HasPassthroughFlag(args) {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] passthrough_flags: matched → passthrough\n")
+			}
 			return passthrough
+		}
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] passthrough_flags: none matched\n")
+		}
+		if hasOutputArgConflict(tc.OutputArgs, args) {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] output_args conflict: found → passthrough\n")
+			}
+			return passthrough
+		}
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] output_args conflict: none\n")
 		}
 		if !tc.ShouldIntercept(subcommand) {
+			if debug {
+				fmt.Fprintf(os.Stderr, "[prettyout] subcommand=%s → no match → passthrough\n", subcommand)
+			}
 			return passthrough
 		}
-		plugin := resolvePlugin(toolName, tc, cfg)
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] subcommand=%s → match → intercepting\n", subcommand)
+		}
+		plugin := resolvePlugin(innerName, tc, cfg)
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] plugin=%s\n", plugin)
+		}
 		transformed := make([]string, len(args), len(args)+len(tc.OutputArgs))
 		copy(transformed, args)
 		return Decision{
@@ -66,22 +109,54 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 		}
 	}
 
-	// Direct tool path (e.g. ruff, basedpyright)
 	tc, ok := reg.Tools[toolName]
 	if !ok {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] %s not in registry → passthrough\n", toolName)
+		}
 		return passthrough
 	}
 	if !cfg.Enabled[toolName] {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] enabled=false → passthrough\n")
+		}
 		return passthrough
 	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] enabled=true\n")
+	}
 	if tc.HasPassthroughFlag(args) {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] passthrough_flags: matched → passthrough\n")
+		}
 		return passthrough
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] passthrough_flags: none matched\n")
+	}
+	if hasOutputArgConflict(tc.OutputArgs, args) {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] output_args conflict: found → passthrough\n")
+		}
+		return passthrough
+	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] output_args conflict: none\n")
 	}
 	subcommand := firstPositional(args)
 	if !tc.ShouldIntercept(subcommand) {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] subcommand=%s → no match → passthrough\n", subcommand)
+		}
 		return passthrough
 	}
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] subcommand=%s → match → intercepting\n", subcommand)
+	}
 	plugin := resolvePlugin(toolName, tc, cfg)
+	if debug {
+		fmt.Fprintf(os.Stderr, "[prettyout] plugin=%s\n", plugin)
+	}
 	transformed := make([]string, len(args), len(args)+len(tc.OutputArgs))
 	copy(transformed, args)
 	return Decision{
@@ -93,6 +168,26 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 	}
 }
 
+func hasOutputArgConflict(outputArgs, userArgs []string) bool {
+	for _, oa := range outputArgs {
+		if i := strings.IndexByte(oa, '='); i >= 0 {
+			key := oa[:i]
+			for _, ua := range userArgs {
+				if strings.HasPrefix(ua, key) {
+					return true
+				}
+			}
+		} else {
+			for _, ua := range userArgs {
+				if ua == oa {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func resolvePlugin(toolName string, tc registry.ToolConfig, cfg *config.Config) string {
 	if override, ok := cfg.Plugins[toolName]; ok && override != "" {
 		return override
@@ -100,7 +195,6 @@ func resolvePlugin(toolName string, tc registry.ToolConfig, cfg *config.Config) 
 	return tc.Plugin
 }
 
-// firstPositional returns the first arg that does not start with '-'.
 func firstPositional(args []string) string {
 	for _, a := range args {
 		if !strings.HasPrefix(a, "-") {
@@ -110,9 +204,12 @@ func firstPositional(args []string) string {
 	return ""
 }
 
-// RunFromArgs is the entry point for `prettyout _run <toolName> [args...]`.
-// It loads registry and config, calls Decide, executes, and returns the exit code.
 func RunFromArgs(args []string) int {
+	debug := false
+	if len(args) > 0 && args[0] == "--debug" {
+		debug = true
+		args = args[1:]
+	}
 	if len(args) == 0 {
 		return 1
 	}
@@ -126,11 +223,10 @@ func RunFromArgs(args []string) int {
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 
-	decision := Decide(toolName, toolArgs, reg, cfg, isTTY())
+	decision := Decide(toolName, toolArgs, reg, cfg, isTTY(), debug)
 	return Execute(decision)
 }
 
-// Execute runs the decision: passthrough or intercepted pipe.
 func Execute(d Decision) int {
 	if !d.Intercept {
 		cmd := exec.Command(d.RealCmd, d.OriginalArgs...)
@@ -186,7 +282,6 @@ func Execute(d Decision) int {
 	return 1
 }
 
-// isTTY reports whether stdout is a terminal.
 func isTTY() bool {
 	info, err := os.Stdout.Stat()
 	if err != nil {
