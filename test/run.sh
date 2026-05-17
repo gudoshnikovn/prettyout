@@ -276,17 +276,26 @@ if has_tool eslint; then
     mkdir -p /tmp/t-eslint && cd /tmp/t-eslint && no_config
 
     cat > eslint.config.mjs << 'JS'
-import js from "@eslint/js";
-export default [js.configs.recommended];
+export default [
+  {
+    rules: {
+      "no-undef": "error",
+      "no-unused-vars": "warn",
+      "eqeqeq": "warn"
+    }
+  }
+];
 JS
     cat > errors.js << 'JS'
 var x = 1
 var y = undefined_var
-console.log(x)
+x + y
 JS
     cat > clean.js << 'JS'
 const x = 1;
-console.log(x);
+const y = 2;
+const z = x + y;
+export default z;
 JS
 
     OUT=$(eslint --format=json errors.js 2>/dev/null | prettyout-eslint || true)

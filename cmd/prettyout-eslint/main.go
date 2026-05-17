@@ -120,7 +120,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 			for i, l := range lines {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", fp, strings.Join(lineStrs, ", "))
+			fmt.Printf("  - %s — %s %s\n", fp, formatter.Plural(len(lines), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
