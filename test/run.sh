@@ -569,18 +569,50 @@ else
 fi
 
 # ── trivy ─────────────────────────────────────────────────────────────────────
+FIXTURES_TRIVY=/project/test/fixtures/trivy
 section "trivy"
 if has_tool trivy; then
-    mkdir -p /tmp/t-trivy && cd /tmp/t-trivy && no_config
+    # Vuln scan — django==2.0 has known CVEs across multiple severities
+    rm -rf /tmp/t-trivy && cp -r "$FIXTURES_TRIVY/django" /tmp/t-trivy
+    cd /tmp/t-trivy && no_config
 
-    # Scan a small known-vulnerable image
-    OUT=$(trivy image --format=json --quiet alpine:3.11 2>/dev/null | prettyout-trivy || true)
-    check "image scan: no crash" "$OUT" "vulnerabilit"
+    OUT=$(trivy fs --format=json --quiet /tmp/t-trivy 2>/dev/null | prettyout-trivy || true)
+    check "vuln scan: shows CRITICAL"       "$OUT" "CRITICAL"
+    check "vuln scan: shows HIGH"           "$OUT" "HIGH"
+    check "vuln scan: shows vuln count"     "$OUT" "vulnerabilities"
+    check "vuln scan: shows CVE ID"         "$OUT" "CVE-"
+    check "vuln scan: shows fix version"    "$OUT" "fix:"
+    check "vuln scan: summary line"         "$OUT" "severity levels"
 
-    # Filesystem scan on clean dir
-    mkdir -p /tmp/t-trivy/clean
-    OUT=$(trivy fs --format=json --quiet /tmp/t-trivy/clean 2>/dev/null | prettyout-trivy || true)
-    check "clean fs: no crash" "$OUT" ""
+    # colors:false — no ANSI codes
+    with_config trivy colors false
+    OUT=$(trivy fs --format=json --quiet /tmp/t-trivy 2>/dev/null | prettyout-trivy | cat || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
+
+    # Clean scan — empty dir produces no Results key in JSON
+    mkdir -p /tmp/t-trivy-clean
+    OUT=$(trivy fs --format=json --quiet /tmp/t-trivy-clean 2>/dev/null | prettyout-trivy || true)
+    check "clean scan: 0 vulns message" "$OUT" "No vulnerabilities found."
+
+    # null Vulnerabilities field — must not crash
+    OUT=$(printf '{"Results":[{"Target":"test.txt","Vulnerabilities":null}]}' | prettyout-trivy || true)
+    check "null Vulnerabilities: no crash" "$OUT" "No vulnerabilities found."
+
+    # Empty stdin — error to stderr, exit 1
+    OUT=$(echo -n '' | prettyout-trivy 2>&1 || true)
+    check "empty stdin: error message" "$OUT" "invalid JSON"
+
+    # Invalid JSON — error to stderr, exit 1
+    EXITCODE=0
+    echo 'not json' | prettyout-trivy 2>/dev/null || EXITCODE=$?
+    if [ "$EXITCODE" -eq 1 ]; then
+        green "  PASS  invalid JSON: exit 1"
+        PASS=$((PASS+1))
+    else
+        red   "  FAIL  invalid JSON: exit 1 (got exit=$EXITCODE)"
+        FAIL=$((FAIL+1))
+    fi
 else
     skip "trivy"
 fi
