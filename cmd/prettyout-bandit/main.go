@@ -65,7 +65,7 @@ func severityColor(sev string, colors bool) string {
 	case "MEDIUM":
 		return "\033[1;33m"
 	default:
-		return "\033[0m"
+		return ""
 	}
 }
 
@@ -108,15 +108,11 @@ func formatByRule(results []banditResult, cfg formatter.Config) error {
 		}
 		col := severityColor(re.severity, cfg.Colors)
 		reset := ""
-		if cfg.Colors {
+		if col != "" {
 			reset = "\033[0m"
 		}
 		header := fmt.Sprintf("%s (%s/%s)", rule, re.severity, re.confidence)
-		if cfg.Colors {
-			fmt.Printf("%s%s%s (%d) — %s\n", col, header, reset, count, re.message)
-		} else {
-			fmt.Printf("%s (%d) — %s\n", header, count, re.message)
-		}
+		fmt.Printf("%s%s%s (%d) — %s\n", col, header, reset, count, re.message)
 		fmt.Println("Affected files:")
 
 		files := make([]string, 0, len(re.fileLines))
