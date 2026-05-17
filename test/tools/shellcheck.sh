@@ -23,6 +23,11 @@ if has_tool shellcheck; then
     OUT=$(shellcheck --format=json errors.sh 2>/dev/null | prettyout-shellcheck | cat || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
+
+    with_config shellcheck colors false
+    OUT=$(shellcheck --format=json errors.sh 2>/dev/null | prettyout-shellcheck || true)
+    check "severity prefix present" "$OUT" "[INFO]"
+    no_config
 else
     skip "shellcheck"
 fi
