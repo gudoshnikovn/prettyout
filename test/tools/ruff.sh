@@ -21,6 +21,7 @@ if has_tool ruff; then
     with_config ruff colors false
     OUT=$(ruff check --output-format=json errors.py 2>/dev/null | prettyout-ruff || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    check "fixable hint present" "$OUT" "fixable with --fix"
 
     with_config ruff max_message_length 10
     OUT=$(ruff check --output-format=json errors.py 2>/dev/null | prettyout-ruff || true)

@@ -14,11 +14,12 @@ type location struct {
 }
 
 type issue struct {
-	Code        string   `json:"code"`
-	Message     string   `json:"message"`
-	Filename    string   `json:"filename"`
-	Location    location `json:"location"`
-	EndLocation location `json:"end_location"`
+	Code        string      `json:"code"`
+	Message     string      `json:"message"`
+	Filename    string      `json:"filename"`
+	Location    location    `json:"location"`
+	EndLocation location    `json:"end_location"`
+	Fix         interface{} `json:"fix"`
 }
 
 func main() {
@@ -111,6 +112,17 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 	}
 
 	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), totalFiles))
+
+	fixable := 0
+	for _, iss := range issues {
+		if iss.Fix != nil {
+			fixable++
+		}
+	}
+	if fixable > 0 {
+		fmt.Printf("  ↳ %d fixable with --fix\n", fixable)
+	}
+
 	return nil
 }
 
