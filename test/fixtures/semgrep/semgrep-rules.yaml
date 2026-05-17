@@ -1,0 +1,11 @@
+rules:
+  - id: hardcoded-password
+    pattern: $X = "..."
+    message: Possible hardcoded secret in $X
+    languages: [python]
+    severity: WARNING
+  - id: shell-injection
+    pattern: subprocess.call($X, shell=True)
+    message: Possible shell injection
+    languages: [python]
+    severity: ERROR

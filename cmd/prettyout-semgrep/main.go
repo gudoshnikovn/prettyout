@@ -57,6 +57,22 @@ func format(data []byte, cfg formatter.Config) error {
 	return formatByRule(report.Results, cfg)
 }
 
+func severityLabel(sev string) string {
+	switch strings.ToUpper(sev) {
+	case "ERROR", "FATAL":
+		return "ERROR"
+	case "WARNING", "WARN":
+		return "WARN"
+	case "INFO", "INFORMATION":
+		return "INFO"
+	default:
+		if sev == "" {
+			return "INFO"
+		}
+		return strings.ToUpper(sev)
+	}
+}
+
 func shortCheckID(checkID string) string {
 	parts := strings.Split(checkID, ".")
 	if len(parts) > 0 {
@@ -105,10 +121,11 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 			reset = "\033[0m"
 		}
 		display := shortCheckID(rule)
+		sevLabel := severityLabel(re.severity)
 		if cfg.Colors {
-			fmt.Printf("%s%s%s (%d) — %s\n", col, display, reset, count, re.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, sevLabel, reset, display, count, re.message)
 		} else {
-			fmt.Printf("%s (%d) — %s\n", display, count, re.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", sevLabel, display, count, re.message)
 		}
 		fmt.Println("Affected files:")
 
@@ -125,7 +142,11 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 			for i, l := range ls {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			lineWord := "lines"
+			if len(ls) == 1 {
+				lineWord = "line"
+			}
+			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}

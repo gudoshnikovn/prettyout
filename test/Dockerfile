@@ -27,7 +27,8 @@ RUN uv tool install ruff && \
     uv tool install mypy && \
     uv tool install bandit && \
     uv tool install pylint && \
-    uv tool install basedpyright
+    uv tool install basedpyright && \
+    uv tool install semgrep
 
 # ── Node.js tools ─────────────────────────────────────────────────────────────
 RUN npm install -g \

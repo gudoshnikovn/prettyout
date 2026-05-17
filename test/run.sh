@@ -633,6 +633,62 @@ else
     skip "trivy"
 fi
 
+# ── semgrep ───────────────────────────────────────────────────────────────────
+FIXTURES_SEMGREP=/project/test/fixtures/semgrep
+section "semgrep"
+if has_tool semgrep; then
+    rm -rf /tmp/t-semgrep && mkdir -p /tmp/t-semgrep && cd /tmp/t-semgrep && no_config
+    cp "$FIXTURES_SEMGREP/errors.py" .
+    cp "$FIXTURES_SEMGREP/clean.py" .
+    cp "$FIXTURES_SEMGREP/semgrep-rules.yaml" .
+
+    # errors run — group_by:rule (default)
+    OUT=$(semgrep --config semgrep-rules.yaml --json errors.py 2>/dev/null | prettyout-semgrep || true)
+    check "errors: shows severity prefix"  "$OUT" "[ERROR]"
+    check "errors: shows rule name"        "$OUT" "shell-injection"
+    check "errors: shows line number"      "$OUT" "line 3"
+    check "errors: no 'lines N' singular"  "$OUT" "line 5"
+    check "errors: shows issue count"      "$OUT" "2 issues"
+    check "errors: summary separator"      "$OUT" " · "
+    check "errors: shows rules count"      "$OUT" "2 rules"
+    check "errors: shows file count"       "$OUT" "1 file"
+
+    # clean run
+    OUT=$(semgrep --config semgrep-rules.yaml --json clean.py 2>/dev/null | prettyout-semgrep || true)
+    check "clean: 0 issues" "$OUT" "0 issues · 0 rules · 0 files"
+
+    # group_by:file
+    with_config semgrep group_by file
+    OUT=$(semgrep --config semgrep-rules.yaml --json errors.py 2>/dev/null | prettyout-semgrep || true)
+    check "group_by:file: shows filename" "$OUT" "errors.py"
+    check "group_by:file: shows line"     "$OUT" "line 3"
+    no_config
+
+    # colors:false — no ANSI codes
+    with_config semgrep colors false
+    OUT=$(semgrep --config semgrep-rules.yaml --json errors.py 2>/dev/null | prettyout-semgrep | cat || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    check "colors:false: still shows severity" "$OUT" "[ERROR]"
+    no_config
+
+    # empty stdin
+    OUT=$(echo -n '' | prettyout-semgrep 2>&1 || true)
+    check "empty stdin: error message" "$OUT" "invalid JSON"
+
+    # invalid JSON — exit 1
+    EXITCODE=0
+    echo 'not json' | prettyout-semgrep 2>/dev/null || EXITCODE=$?
+    if [ "$EXITCODE" -eq 1 ]; then
+        green "  PASS  invalid JSON: exit 1"
+        PASS=$((PASS+1))
+    else
+        red   "  FAIL  invalid JSON: exit 1 (got exit=$EXITCODE)"
+        FAIL=$((FAIL+1))
+    fi
+else
+    skip "semgrep"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 printf '\n\033[1m══ Results ══\033[0m\n'
 printf '\033[1;32mPASS: %d\033[0m  ' "$PASS"
