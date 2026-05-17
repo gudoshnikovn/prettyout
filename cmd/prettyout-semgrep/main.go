@@ -99,14 +99,15 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 			re.message = truncate(r.Extra.Message, cfg.MaxMessageLength)
 			re.severity = r.Extra.Severity
 		}
-		re.fileLines[r.Path] = append(re.fileLines[r.Path], r.Start.Line)
+		rp := formatter.ResolvePath(r.Path, cfg)
+		re.fileLines[rp] = append(re.fileLines[rp], r.Start.Line)
 	}
 
 	sort.Strings(ruleOrder)
 
 	totalFiles := map[string]struct{}{}
 	for _, r := range results {
-		totalFiles[r.Path] = struct{}{}
+		totalFiles[formatter.ResolvePath(r.Path, cfg)] = struct{}{}
 	}
 
 	for _, rule := range ruleOrder {
@@ -171,10 +172,11 @@ func formatByFile(results []semgrepResult, cfg formatter.Config) error {
 			rule = "unknown"
 		}
 		allRules[rule] = struct{}{}
-		if _, ok := fileMap[r.Path]; !ok {
-			fileOrder = append(fileOrder, r.Path)
+		rp := formatter.ResolvePath(r.Path, cfg)
+		if _, ok := fileMap[rp]; !ok {
+			fileOrder = append(fileOrder, rp)
 		}
-		fileMap[r.Path] = append(fileMap[r.Path], lineEntry{rule: shortCheckID(rule), line: r.Start.Line, message: truncate(r.Extra.Message, cfg.MaxMessageLength)})
+		fileMap[rp] = append(fileMap[rp], lineEntry{rule: shortCheckID(rule), line: r.Start.Line, message: truncate(r.Extra.Message, cfg.MaxMessageLength)})
 	}
 
 	sort.Strings(fileOrder)

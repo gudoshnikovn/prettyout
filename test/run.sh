@@ -652,6 +652,8 @@ if has_tool semgrep; then
     check "errors: summary separator"      "$OUT" " · "
     check "errors: shows rules count"      "$OUT" "2 rules"
     check "errors: shows file count"       "$OUT" "1 file"
+    check "errors: path is relative"       "$OUT" "errors.py"
+    check_absent "errors: no absolute path" "$OUT" "/tmp/t-semgrep/"
 
     # clean run
     OUT=$(semgrep --config semgrep-rules.yaml --json clean.py 2>/dev/null | prettyout-semgrep || true)
