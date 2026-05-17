@@ -421,10 +421,15 @@ else
 fi
 
 # ── golangci-lint ─────────────────────────────────────────────────────────────
+# Note: use --disable-all --enable=ineffassign to avoid the buildir/goanalysis_metalinter
+# crash (exit 3, empty stdout) that occurs when golangci-lint's Go version mismatches
+# the system Go. ineffassign is pure-AST and always works.
 section "golangci-lint"
 if has_tool golangci-lint; then
     mkdir -p /tmp/t-golangci && cd /tmp/t-golangci && no_config
-    go mod init golangci_test 2>/dev/null || true
+    # Write go.mod explicitly at go 1.21 — golangci-lint 1.61 (built with go1.23) refuses
+    # to run against a newer Go version detected from go.mod, so pin to 1.21.
+    printf 'module golangci_test\ngo 1.21\n' > go.mod
 
     cat > main.go << 'GO'
 package main
@@ -432,14 +437,48 @@ package main
 import "fmt"
 
 func main() {
-    x := 1
-    fmt.Println("hello")
-    _ = x
+    x := 42
+    x = 100
+    fmt.Println(x)
 }
 GO
 
-    OUT=$(golangci-lint run --out-format=json 2>/dev/null | prettyout-golangci || true)
-    check "no crash on run" "$OUT" "issue"
+    OUT=$(golangci-lint run --out-format=json --disable-all --enable=ineffassign 2>/dev/null | prettyout-golangci || true)
+    check "errors: shows linter name"   "$OUT" "ineffassign"
+    check "errors: shows issue count"   "$OUT" "issue"
+    check "errors: shows summary"       "$OUT" "rule"
+    check "errors: summary separator"   "$OUT" " · "
+
+    cat > main.go << 'GO'
+package main
+
+import "fmt"
+
+func main() { fmt.Println("hello") }
+GO
+    OUT=$(golangci-lint run --out-format=json --disable-all --enable=ineffassign 2>/dev/null | prettyout-golangci || true)
+    check "clean: 0 issues" "$OUT" "0 issues"
+
+    cat > main.go << 'GO'
+package main
+
+import "fmt"
+
+func main() {
+    x := 42
+    x = 100
+    fmt.Println(x)
+}
+GO
+    with_config golangci-lint group_by file
+    OUT=$(golangci-lint run --out-format=json --disable-all --enable=ineffassign 2>/dev/null | prettyout-golangci || true)
+    check "group_by:file: shows filename" "$OUT" "main.go"
+    no_config
+
+    with_config golangci-lint colors false
+    OUT=$(golangci-lint run --out-format=json --disable-all --enable=ineffassign 2>/dev/null | prettyout-golangci | cat || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
 else
     skip "golangci-lint"
 fi

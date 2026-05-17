@@ -35,6 +35,10 @@ func main() {
 }
 
 func format(data []byte, cfg formatter.Config) error {
+	if len(strings.TrimSpace(string(data))) == 0 {
+		fmt.Println(formatter.Summary(0, 0, 0))
+		return nil
+	}
 	var report golangciReport
 	if err := json.Unmarshal(data, &report); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
