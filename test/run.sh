@@ -497,14 +497,34 @@ TOML
 
     cat > src/main.rs << 'RS'
 fn main() {
-    let x = vec![1, 2, 3];
-    let _ = x;
+    let mut v = Vec::new();
+    v.push(1);
+    v.push(2);
+    let _x = vec![1, 2, 3];
     return;
 }
 RS
 
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
-    check "errors: shows rule" "$OUT" "issue"
+    check "errors: shows rule"          "$OUT" "clippy::"
+    check "errors: shows issue count"   "$OUT" "issue"
+    check "errors: summary separator"   "$OUT" " · "
+    check "errors: rule count format"   "$OUT" " ("
+    # needless_return is on line 6 — plugin must use primary span line_start
+    check "errors: primary span line"   "$OUT" "line 6"
+    # compiler-artifact and build-finished entries must not appear in output
+    check_absent "errors: no artifact noise" "$OUT" "compiler-artifact"
+    check_absent "errors: no build-finished" "$OUT" "build-finished"
+
+    with_config cargo-clippy group_by file
+    OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
+    check "group_by:file: shows filename"  "$OUT" "src/main.rs"
+    no_config
+
+    with_config cargo-clippy colors false
+    OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
 
     cat > src/main.rs << 'RS'
 fn main() {
@@ -512,7 +532,7 @@ fn main() {
 }
 RS
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
-    check "clean: 0 issues" "$OUT" "0 issues"
+    check "clean: 0 issues" "$OUT" "0 issues · 0 rules · 0 files"
 else
     skip "cargo"
 fi

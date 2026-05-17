@@ -1,0 +1,4 @@
+[package]
+name = "clippy_test_clean"
+version = "0.1.0"
+edition = "2021"
