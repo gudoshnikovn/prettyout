@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
 )
@@ -27,6 +28,17 @@ type ruleEntry struct {
 	severity string
 	message  string
 	files    map[string]struct{}
+}
+
+func severityLabel(sev string) string {
+	switch strings.ToLower(sev) {
+	case "error", "fatal":
+		return "ERROR"
+	case "warning":
+		return "WARN"
+	default:
+		return "INFO"
+	}
 }
 
 func main() {
@@ -102,10 +114,11 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
+		label := severityLabel(r.severity)
 		if cfg.Colors {
-			fmt.Printf("%s%s%s (%d) — %s\n", col, rule, reset, occurrences, r.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, occurrences, r.message)
 		} else {
-			fmt.Printf("%s (%d) — %s\n", rule, occurrences, r.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", label, rule, occurrences, r.message)
 		}
 
 		if len(r.files) > 0 {

@@ -23,6 +23,11 @@ if has_tool biome; then
     OUT=$(biome check --reporter=json errors.ts 2>/dev/null | prettyout-biome || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
+
+    with_config biome colors false
+    OUT=$(biome check --reporter=json errors.ts 2>/dev/null | prettyout-biome || true)
+    check "severity prefix present" "$OUT" "[ERROR]"
+    no_config
 else
     skip "biome"
 fi

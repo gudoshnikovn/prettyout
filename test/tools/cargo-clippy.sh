@@ -27,6 +27,11 @@ if has_tool cargo; then
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "clean: 0 issues" "$OUT" "0 issues · 0 rules · 0 files"
 
+    cd /tmp/t-cargo-errors && with_config cargo-clippy colors false
+    OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
+    check "severity prefix present" "$OUT" "[WARN]"
+    no_config
+
     rm -rf /tmp/t-cargo-rustc && cp -r "$FIXTURES_CLIPPY/rustc-warning" /tmp/t-cargo-rustc
     cd /tmp/t-cargo-rustc && no_config
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
