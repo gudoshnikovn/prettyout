@@ -485,25 +485,11 @@ fi
 
 # ── cargo clippy ──────────────────────────────────────────────────────────────
 section "cargo clippy"
+FIXTURES_CLIPPY=/project/test/fixtures/cargo-clippy
 if has_tool cargo; then
-    mkdir -p /tmp/t-cargo/src && cd /tmp/t-cargo && no_config
-
-    cat > Cargo.toml << 'TOML'
-[package]
-name = "clippy_test"
-version = "0.1.0"
-edition = "2021"
-TOML
-
-    cat > src/main.rs << 'RS'
-fn main() {
-    let mut v = Vec::new();
-    v.push(1);
-    v.push(2);
-    let _x = vec![1, 2, 3];
-    return;
-}
-RS
+    # errors fixture — 3 clippy warnings (needless_return, useless_vec, vec_init_then_push)
+    cp -r "$FIXTURES_CLIPPY/errors" /tmp/t-cargo-errors
+    cd /tmp/t-cargo-errors && no_config
 
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "errors: shows rule"          "$OUT" "clippy::"
@@ -512,9 +498,8 @@ RS
     check "errors: rule count format"   "$OUT" " ("
     # needless_return is on line 6 — plugin must use primary span line_start
     check "errors: primary span line"   "$OUT" "line 6"
-    # compiler-artifact and build-finished entries must not appear in output
-    check_absent "errors: no artifact noise" "$OUT" "compiler-artifact"
-    check_absent "errors: no build-finished" "$OUT" "build-finished"
+    # artifacts filtered: only 3 clippy warnings counted, not compiler-artifact/build-finished entries
+    check "errors: artifact filtering (3 issues)" "$OUT" "3 issues"
 
     with_config cargo-clippy group_by file
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
@@ -526,13 +511,18 @@ RS
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
 
-    cat > src/main.rs << 'RS'
-fn main() {
-    println!("Hello!");
-}
-RS
+    # clean fixture — no warnings
+    cp -r "$FIXTURES_CLIPPY/clean" /tmp/t-cargo-clean
+    cd /tmp/t-cargo-clean && no_config
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "clean: 0 issues" "$OUT" "0 issues · 0 rules · 0 files"
+
+    # rustc-warning fixture — unused_variables is a rustc code, not a clippy:: lint
+    cp -r "$FIXTURES_CLIPPY/rustc-warning" /tmp/t-cargo-rustc
+    cd /tmp/t-cargo-rustc && no_config
+    OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
+    check "rustc code: shown without clippy:: prefix" "$OUT" "unused_variables"
+    check_absent "rustc code: no clippy:: prefix" "$OUT" "clippy::unused_variables"
 else
     skip "cargo"
 fi
