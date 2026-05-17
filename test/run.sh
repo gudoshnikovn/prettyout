@@ -357,18 +357,28 @@ fi
 SH
     cat > clean.sh << 'SH'
 #!/bin/bash
-x=$(echo hello)
-if [ "$x" = "hello" ]; then
-    echo "yes"
-fi
+x="hello"
+echo "$x"
 SH
 
     OUT=$(shellcheck --format=json errors.sh 2>/dev/null | prettyout-shellcheck || true)
-    check "errors: shows SC code" "$OUT" "SC"
-    check "errors: shows file"    "$OUT" "errors.sh"
+    check "errors: shows SC code"      "$OUT" "SC"
+    check "errors: shows file"         "$OUT" "errors.sh"
+    check "errors: rule count format"  "$OUT" " ("
+    check "errors: summary separator"  "$OUT" " · "
 
     OUT=$(shellcheck --format=json clean.sh 2>/dev/null | prettyout-shellcheck || true)
     check "clean: 0 issues" "$OUT" "0 issues"
+
+    with_config shellcheck group_by file
+    OUT=$(shellcheck --format=json errors.sh 2>/dev/null | prettyout-shellcheck || true)
+    check "group_by:file: shows filename" "$OUT" "errors.sh"
+    no_config
+
+    with_config shellcheck colors false
+    OUT=$(shellcheck --format=json errors.sh 2>/dev/null | prettyout-shellcheck | cat || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
 else
     skip "shellcheck"
 fi
@@ -385,17 +395,27 @@ RUN apt-get install curl
 DF
     cat > Dockerfile.clean << 'DF'
 FROM ubuntu:24.04
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        vim \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends vim=2:9.1.0016-1ubuntu7.1 && rm -rf /var/lib/apt/lists/*
 DF
 
     OUT=$(hadolint --format=json Dockerfile.errors 2>/dev/null | prettyout-hadolint || true)
-    check "errors: shows DL code" "$OUT" "DL"
-    check "errors: shows file"    "$OUT" "Dockerfile"
+    check "errors: shows DL code"      "$OUT" "DL"
+    check "errors: shows file"         "$OUT" "Dockerfile"
+    check "errors: rule count format"  "$OUT" " ("
+    check "errors: summary separator"  "$OUT" " · "
 
     OUT=$(hadolint --format=json Dockerfile.clean 2>/dev/null | prettyout-hadolint || true)
     check "clean: 0 issues" "$OUT" "0 issues"
+
+    with_config hadolint group_by file
+    OUT=$(hadolint --format=json Dockerfile.errors 2>/dev/null | prettyout-hadolint || true)
+    check "group_by:file: shows filename" "$OUT" "Dockerfile"
+    no_config
+
+    with_config hadolint colors false
+    OUT=$(hadolint --format=json Dockerfile.errors 2>/dev/null | prettyout-hadolint | cat || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
 else
     skip "hadolint"
 fi
