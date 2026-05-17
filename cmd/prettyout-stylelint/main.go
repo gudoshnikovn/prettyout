@@ -48,7 +48,7 @@ func format(data []byte, cfg formatter.Config) error {
 
 	var allIssues []issueItem
 	for _, f := range files {
-		source := f.Source
+		source := formatter.ResolvePath(f.Source, cfg)
 		for range f.ParseErrors {
 			allIssues = append(allIssues, issueItem{source: source, rule: "parse-error", severity: "error", line: 0, message: "CSS parse error"})
 		}

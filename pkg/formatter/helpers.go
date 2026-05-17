@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -71,6 +72,23 @@ func ParseNDJSON(data []byte) ([]json.RawMessage, error) {
 		}
 	}
 	return results, nil
+}
+
+// Plural returns singular when n==1, plural otherwise.
+func Plural(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
+}
+
+// Summary returns a standard "N issues · M rules · K files" summary line.
+func Summary(issues, rules, files int) string {
+	return fmt.Sprintf("%d %s · %d %s · %d %s",
+		issues, Plural(issues, "issue", "issues"),
+		rules, Plural(rules, "rule", "rules"),
+		files, Plural(files, "file", "files"),
+	)
 }
 
 func trimSpace(b []byte) []byte {
