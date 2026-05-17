@@ -24,6 +24,11 @@ if has_tool stylelint; then
     OUT=$(stylelint --formatter=json errors.css 2>&1 >/dev/null | prettyout-stylelint | cat || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
+
+    with_config stylelint colors false
+    OUT=$(stylelint --formatter=json errors.css 2>&1 >/dev/null | prettyout-stylelint || true)
+    check "severity prefix present" "$OUT" "[ERROR]"
+    no_config
 else
     skip "stylelint"
 fi

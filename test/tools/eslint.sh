@@ -12,6 +12,11 @@ if has_tool eslint; then
 
     OUT=$(eslint --format=json clean.js 2>/dev/null | prettyout-eslint || true)
     check "clean: 0 issues" "$OUT" "0 issues"
+
+    with_config eslint colors false
+    OUT=$(eslint --format=json errors.js 2>/dev/null | prettyout-eslint || true)
+    check "severity prefix present" "$OUT" "[ERROR]"
+    no_config
 else
     skip "eslint"
 fi

@@ -27,6 +27,15 @@ type ruleEntry struct {
 	fileLines map[string][]int
 }
 
+func severityLabel(sev string) string {
+	switch sev {
+	case "error":
+		return "ERROR"
+	default:
+		return "WARN"
+	}
+}
+
 func main() {
 	formatter.RunWithConfig("eslint", format)
 }
@@ -100,10 +109,11 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
+		label := severityLabel(r.severity)
 		if cfg.Colors {
-			fmt.Printf("%s\033[1;35m%s\033[0m%s (%d) — %s\n", color, rid, reset, count, r.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", color, label, reset, rid, count, r.message)
 		} else {
-			fmt.Printf("%s (%d) — %s\n", rid, count, r.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", label, rid, count, r.message)
 		}
 		fmt.Println("Affected files:")
 
