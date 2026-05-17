@@ -119,12 +119,21 @@ Things that have bitten us before — check these explicitly:
 
 | Bug | Where it appeared | Fix |
 |-----|-------------------|-----|
-| `lines 5` for single occurrence | cargo-clippy | `if len == 1: "line N"` |
+| `lines 5` for single occurrence | cargo-clippy, semgrep | `if len == 1: "line N"` not `"lines N"` |
 | `1 files` in summary | Multiple plugins | `plural("file", n)` helper |
 | Multiline messages shown raw | basedpyright | Take `strings.Split(msg, "\n")[0]` |
 | Duplicate line numbers | basedpyright (parse errors) | Use `map[int]struct{}` not `[]int` |
 | Ugly `../../..` paths | /tmp symlink on macOS | Real usage is fine; test from project dir |
 | Plugins written from docs without testing | All new plugins | Always run Step 1-4 above |
+| Missing severity prefix in rule header | semgrep | Format header as `[ERROR] rule-name` using `SeverityColor`; severity comes from `result.extra.severity` |
+| Paths shown raw instead of relative | semgrep | Always pass paths through `ResolvePath(path, cfg)`, not `result.path` directly |
+| ANSI codes leaking into non-color mode | bandit | Gate all color calls on `cfg.Colors`; use `SeverityColor(sev, cfg.Colors)` |
+| Duplicate issues per-rule (same file+line) | pylint | Deduplicate by `(file, line)` within each rule group before printing |
+| Wrong field for file path in imports | eslint | `result.filePath` is the top-level key, not a per-message field |
+| `location.path` treated as string, actually object | biome | biome JSON has `location.path.file` — access the nested `.file` field |
+| Plugin output piped to stderr, not stdout | stylelint | Ensure `os.Stdin` → plugin → `os.Stdout`; stderr from tool must not bleed through |
+| Null `Issues` field causes crash | golangci-lint | Guard `if report.Issues == nil` before ranging over issues |
+| `cp -r` without clearing dest causes stale test fixtures | test/run.sh, Docker | Run `rm -rf dest && cp -r src dest` when copying test fixtures into container |
 
 ---
 
