@@ -61,7 +61,7 @@ tools:
       go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-bandit
   pylint:
     plugin: prettyout-pylint
-    output_args: [--output-format=json]
+    output_args: [--output-format=json2]
     launchers: [uvx, pipx]
     install:
       go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-pylint

@@ -10,12 +10,27 @@ import (
 )
 
 type pylintMsg struct {
-	Type      string `json:"type"`
-	Line      int    `json:"line"`
-	Path      string `json:"path"`
-	Symbol    string `json:"symbol"`
-	Message   string `json:"message"`
-	MessageID string `json:"message-id"`
+	Type          string `json:"type"`
+	Line          int    `json:"line"`
+	Path          string `json:"path"`
+	Symbol        string `json:"symbol"`
+	Message       string `json:"message"`
+	MessageID     string `json:"message-id"` // json format
+	MessageIDJson2 string `json:"messageId"`  // json2 format
+}
+
+func (m *pylintMsg) msgID() string {
+	if m.MessageIDJson2 != "" {
+		return m.MessageIDJson2
+	}
+	return m.MessageID
+}
+
+type pylintJSON2 struct {
+	Messages   []pylintMsg `json:"messages"`
+	Statistics struct {
+		Score float64 `json:"score"`
+	} `json:"statistics"`
 }
 
 type ruleEntry struct {
@@ -29,16 +44,29 @@ func main() {
 	formatter.RunWithConfig("pylint", format)
 }
 
+func severityLabel(t string) string {
+	switch t {
+	case "error", "fatal":
+		return "ERROR"
+	case "warning":
+		return "WARN"
+	default:
+		return "INFO"
+	}
+}
+
 func format(data []byte, cfg formatter.Config) error {
-	var msgs []pylintMsg
-	if err := json.Unmarshal(data, &msgs); err != nil {
+	var wrapper pylintJSON2
+	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
+	msgs := wrapper.Messages
+	score := wrapper.Statistics.Score
 
 	if cfg.GroupBy == "file" {
 		return formatByFile(msgs, cfg)
 	}
-	return formatByRule(msgs, cfg)
+	return formatByRule(msgs, cfg, score)
 }
 
 func pylintSeverity(t string) string {
@@ -68,17 +96,17 @@ func pylintColor(t string, colors bool) string {
 
 func ruleDisplay(m pylintMsg) string {
 	if m.Symbol != "" {
-		return m.MessageID + "/" + m.Symbol
+		return m.msgID() + "/" + m.Symbol
 	}
-	return m.MessageID
+	return m.msgID()
 }
 
-func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
+func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 	rules := map[string]*ruleEntry{}
 	ruleOrder := []string{}
 
 	for _, m := range msgs {
-		key := m.MessageID
+		key := m.msgID()
 		if key == "" {
 			key = "unknown"
 		}
@@ -115,7 +143,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 		// find the type for this rule
 		msgType := ""
 		for _, m := range msgs {
-			if m.MessageID == key {
+			if m.msgID() == key {
 				msgType = m.Type
 				break
 			}
@@ -125,10 +153,11 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
+		label := severityLabel(msgType)
 		if cfg.Colors {
-			fmt.Printf("%s%s%s (%d) — %s\n", col, r.display, reset, count, r.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, r.display, count, r.message)
 		} else {
-			fmt.Printf("%s (%d) — %s\n", r.display, count, r.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", label, r.display, count, r.message)
 		}
 		fmt.Println("Affected files:")
 
@@ -165,6 +194,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 		}
 	}
 	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
+	fmt.Printf("  ↳ rated %.2f/10\n", score)
 	return nil
 }
 
@@ -186,7 +216,7 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 
 	for _, m := range msgs {
 		key := ruleDisplay(m)
-		if m.MessageID == "" {
+		if m.msgID() == "" {
 			key = "unknown"
 		}
 		allRules[key] = struct{}{}
