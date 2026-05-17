@@ -35,6 +35,11 @@ if has_tool mypy; then
     OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
     check "max_message_length: message truncated" "$OUT" "..."
     no_config
+
+    with_config mypy colors false
+    OUT=$(mypy --output=json errors.py 2>/dev/null | prettyout-mypy || true)
+    check "severity prefix present" "$OUT" "[ERROR]"
+    no_config
 else
     skip "mypy"
 fi
