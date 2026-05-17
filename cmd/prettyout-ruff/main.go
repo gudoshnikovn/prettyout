@@ -200,6 +200,15 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 	}
 
 	fmt.Println(formatter.Summary(len(issues), len(ruleSeen), len(fileOrder)))
+	fixable := 0
+	for _, iss := range issues {
+		if iss.Fix != nil {
+			fixable++
+		}
+	}
+	if fixable > 0 {
+		fmt.Printf("  ↳ %d fixable with --fix\n", fixable)
+	}
 	return nil
 }
 
