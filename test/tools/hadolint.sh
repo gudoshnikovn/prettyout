@@ -23,6 +23,13 @@ if has_tool hadolint; then
     OUT=$(hadolint --format=json Dockerfile.errors 2>/dev/null | prettyout-hadolint | cat || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
+
+    with_config hadolint colors false
+    OUT=$(hadolint --format=json Dockerfile.errors 2>/dev/null | prettyout-hadolint || true)
+    check "severity prefix present"     "$OUT" "[WARN]"
+    check "singular line label"         "$OUT" "line 1"
+    check_absent "no plural for single" "$OUT" "lines 1"
+    no_config
 else
     skip "hadolint"
 fi

@@ -62,6 +62,17 @@ func hadolintColor(level string, colors bool) string {
 	}
 }
 
+func severityLabel(level string) string {
+	switch level {
+	case "error":
+		return "ERROR"
+	case "warning":
+		return "WARN"
+	default:
+		return "INFO"
+	}
+}
+
 func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 	rules := map[string]*ruleEntry{}
 	ruleOrder := []string{}
@@ -101,10 +112,11 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
+		label := severityLabel(r.severity)
 		if cfg.Colors {
-			fmt.Printf("%s%s%s (%d) — %s\n", col, rule, reset, count, r.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, count, r.message)
 		} else {
-			fmt.Printf("%s (%d) — %s\n", rule, count, r.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", label, rule, count, r.message)
 		}
 		fmt.Println("Affected files:")
 
@@ -121,7 +133,8 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 			for i, l := range ls {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			lineWord := formatter.Plural(len(ls), "line", "lines")
+			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
