@@ -22,7 +22,7 @@ type ruleEntry struct {
 	severity  string
 	message   string
 	display   string
-	fileLines map[string][]int
+	fileLines map[string]map[int]struct{}
 }
 
 func main() {
@@ -83,7 +83,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 			key = "unknown"
 		}
 		if _, ok := rules[key]; !ok {
-			rules[key] = &ruleEntry{fileLines: map[string][]int{}}
+			rules[key] = &ruleEntry{fileLines: map[string]map[int]struct{}{}}
 			ruleOrder = append(ruleOrder, key)
 		}
 		r := rules[key]
@@ -92,7 +92,10 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 			r.severity = pylintSeverity(m.Type)
 			r.display = ruleDisplay(m)
 		}
-		r.fileLines[m.Path] = append(r.fileLines[m.Path], m.Line)
+		if r.fileLines[m.Path] == nil {
+			r.fileLines[m.Path] = map[int]struct{}{}
+		}
+		r.fileLines[m.Path][m.Line] = struct{}{}
 	}
 
 	sort.Strings(ruleOrder)
@@ -105,8 +108,8 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 	for _, key := range ruleOrder {
 		r := rules[key]
 		count := 0
-		for _, lines := range r.fileLines {
-			count += len(lines)
+		for _, lineSet := range r.fileLines {
+			count += len(lineSet)
 		}
 
 		// find the type for this rule
@@ -136,18 +139,32 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config) error {
 		sort.Strings(files)
 
 		for _, f := range files {
-			ls := r.fileLines[f]
+			lineSet := r.fileLines[f]
+			ls := make([]int, 0, len(lineSet))
+			for l := range lineSet {
+				ls = append(ls, l)
+			}
 			sort.Ints(ls)
 			lineStrs := make([]string, len(ls))
 			for i, l := range ls {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			label := "lines"
+			if len(ls) == 1 {
+				label = "line"
+			}
+			fmt.Printf("  - %s — %s %s\n", f, label, strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(len(msgs), len(rules), len(totalFiles)))
+	totalIssues := 0
+	for _, r := range rules {
+		for _, lineSet := range r.fileLines {
+			totalIssues += len(lineSet)
+		}
+	}
+	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
 	return nil
 }
 
@@ -157,7 +174,13 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 		line    int
 		message string
 	}
+	// fileMap stores deduplicated (rule, line) pairs per file
+	type ruleLineKey struct {
+		rule string
+		line int
+	}
 	fileMap := map[string][]lineEntry{}
+	fileSeen := map[string]map[ruleLineKey]struct{}{}
 	fileOrder := []string{}
 	allRules := map[string]struct{}{}
 
@@ -169,15 +192,31 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 		allRules[key] = struct{}{}
 		if _, ok := fileMap[m.Path]; !ok {
 			fileOrder = append(fileOrder, m.Path)
+			fileSeen[m.Path] = map[ruleLineKey]struct{}{}
 		}
+		rlk := ruleLineKey{rule: key, line: m.Line}
+		if _, seen := fileSeen[m.Path][rlk]; seen {
+			continue
+		}
+		fileSeen[m.Path][rlk] = struct{}{}
 		fileMap[m.Path] = append(fileMap[m.Path], lineEntry{rule: key, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
 	}
 
 	sort.Strings(fileOrder)
 
+	totalIssues := 0
+	for _, entries := range fileMap {
+		totalIssues += len(entries)
+	}
+
 	for _, f := range fileOrder {
 		entries := fileMap[f]
-		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].line != entries[j].line {
+				return entries[i].line < entries[j].line
+			}
+			return entries[i].rule < entries[j].rule
+		})
 		fmt.Printf("%s — %d %s\n", f, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
 		for _, e := range entries {
@@ -191,7 +230,7 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(len(msgs), len(allRules), len(fileOrder)))
+	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))
 	return nil
 }
 
