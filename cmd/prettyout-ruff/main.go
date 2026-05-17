@@ -19,7 +19,7 @@ type issue struct {
 	Filename    string      `json:"filename"`
 	Location    location    `json:"location"`
 	EndLocation location    `json:"end_location"`
-	Fix         interface{} `json:"fix"`
+	Fix         any         `json:"fix"`
 }
 
 func main() {
