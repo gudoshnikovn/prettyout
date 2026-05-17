@@ -50,6 +50,11 @@ if has_tool trivy; then
         red   "  FAIL  invalid JSON: exit 1 (got exit=$EXITCODE)"
         FAIL=$((FAIL+1))
     fi
+
+    with_config trivy group_by file
+    OUT=$(trivy fs --format=json --quiet /tmp/t-trivy 2>/dev/null | prettyout-trivy || true)
+    check "group_by:file: shows target filename" "$OUT" "requirements.txt"
+    no_config
 else
     skip "trivy"
 fi

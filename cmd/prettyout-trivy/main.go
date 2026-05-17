@@ -60,6 +60,10 @@ func format(data []byte, cfg formatter.Config) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
+	if cfg.GroupBy == "file" {
+		return formatByFile(report, cfg)
+	}
+
 	// Collect all vulns grouped by severity
 	bySeverity := map[string][]trivyVuln{}
 	for _, result := range report.Results {
@@ -121,5 +125,59 @@ func format(data []byte, cfg formatter.Config) error {
 	}
 
 	fmt.Printf("%d vulnerabilities · %d severity levels\n", totalVulns, len(sevs))
+	return nil
+}
+
+func formatByFile(report trivyReport, cfg formatter.Config) error {
+	totalVulns := 0
+	targets := 0
+
+	for _, result := range report.Results {
+		if len(result.Vulnerabilities) == 0 {
+			continue
+		}
+		targets++
+		vulns := result.Vulnerabilities
+		totalVulns += len(vulns)
+
+		fmt.Println(result.Target)
+
+		// Sort by severity rank then CVE ID
+		sort.Slice(vulns, func(i, j int) bool {
+			ri := severityRank(vulns[i].Severity)
+			rj := severityRank(vulns[j].Severity)
+			if ri != rj {
+				return ri < rj
+			}
+			return vulns[i].VulnerabilityID < vulns[j].VulnerabilityID
+		})
+
+		for _, v := range vulns {
+			sev := v.Severity
+			if sev == "" {
+				sev = "UNKNOWN"
+			}
+			col := trivyColor(sev, cfg.Colors)
+			reset := ""
+			if cfg.Colors {
+				reset = "\033[0m"
+			}
+			if v.FixedVersion != "" {
+				fmt.Printf("  %s%-8s%s %s — %s %s → fix: %s\n", col, sev, reset, v.VulnerabilityID, v.PkgName, v.InstalledVersion, v.FixedVersion)
+			} else {
+				fmt.Printf("  %s%-8s%s %s — %s %s → no fix available\n", col, sev, reset, v.VulnerabilityID, v.PkgName, v.InstalledVersion)
+			}
+		}
+		fmt.Println("────────────────────────────────────────────────")
+	}
+
+	if totalVulns == 0 {
+		fmt.Println("No vulnerabilities found.")
+		return nil
+	}
+
+	fmt.Printf("%d %s · %d %s\n",
+		totalVulns, formatter.Plural(totalVulns, "vulnerability", "vulnerabilities"),
+		targets, formatter.Plural(targets, "target", "targets"))
 	return nil
 }
