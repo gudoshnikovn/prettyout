@@ -8,19 +8,15 @@ import (
 	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
 )
 
-type biomePath struct {
-	File string `json:"file"`
-}
-
 type biomeLocation struct {
-	Path biomePath `json:"path"`
+	Path string `json:"path"`
 }
 
 type biomeDiagnostic struct {
-	Category    string        `json:"category"`
-	Description string        `json:"description"`
-	Severity    string        `json:"severity"`
-	Location    biomeLocation `json:"location"`
+	Category string        `json:"category"`
+	Message  string        `json:"message"`
+	Severity string        `json:"severity"`
+	Location biomeLocation `json:"location"`
 }
 
 type biomeReport struct {
@@ -58,7 +54,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		if rule == "" {
 			rule = "unknown"
 		}
-		file := d.Location.Path.File
+		file := d.Location.Path
 
 		if _, ok := rules[rule]; !ok {
 			rules[rule] = &ruleEntry{files: map[string]struct{}{}}
@@ -66,7 +62,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(d.Description, cfg.MaxMessageLength)
+			r.message = truncate(d.Message, cfg.MaxMessageLength)
 			r.severity = d.Severity
 		}
 		if file != "" {
@@ -78,8 +74,8 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 
 	totalFiles := map[string]struct{}{}
 	for _, d := range diags {
-		if d.Location.Path.File != "" {
-			totalFiles[d.Location.Path.File] = struct{}{}
+		if d.Location.Path != "" {
+			totalFiles[d.Location.Path] = struct{}{}
 		}
 	}
 
@@ -140,7 +136,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 	allRules := map[string]struct{}{}
 
 	for _, d := range diags {
-		file := d.Location.Path.File
+		file := d.Location.Path
 		if file == "" {
 			file = "(unknown)"
 		}
@@ -152,7 +148,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 		if _, ok := fileMap[file]; !ok {
 			fileOrder = append(fileOrder, file)
 		}
-		fileMap[file] = append(fileMap[file], entry{rule: rule, message: truncate(d.Description, cfg.MaxMessageLength)})
+		fileMap[file] = append(fileMap[file], entry{rule: rule, message: truncate(d.Message, cfg.MaxMessageLength)})
 	}
 
 	sort.Strings(fileOrder)

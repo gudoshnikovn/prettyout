@@ -312,24 +312,33 @@ fi
 section "biome"
 if has_tool biome; then
     mkdir -p /tmp/t-biome && cd /tmp/t-biome && no_config
-    biome init --json-pretty 2>/dev/null || true
+    printf '{"linter":{"enabled":true,"rules":{"recommended":true}}}' > biome.json
 
     cat > errors.ts << 'TS'
 var x = 1
 if (x == "1") { console.log("bad") }
+debugger;
 TS
-    cat > clean.ts << 'TS'
-const x: number = 1;
-if (x === 1) {
-  console.log("good");
-}
-TS
+    # Use tab indentation and double quotes so biome formatter is satisfied
+    printf 'const x: number = 1;\nif (x === 1) {\n\tconsole.log("good");\n}\n' > clean.ts
 
     OUT=$(biome check --reporter=json errors.ts 2>/dev/null | prettyout-biome || true)
-    check "errors: shows category" "$OUT" "issue"
+    check "errors: shows category"     "$OUT" "issue"
+    check "errors: rule count format"  "$OUT" " ("
+    check "errors: summary separator"  "$OUT" " · "
 
     OUT=$(biome check --reporter=json clean.ts 2>/dev/null | prettyout-biome || true)
     check "clean: 0 issues" "$OUT" "0 issues"
+
+    with_config biome group_by file
+    OUT=$(biome check --reporter=json errors.ts 2>/dev/null | prettyout-biome || true)
+    check "group_by:file: shows filename" "$OUT" "errors.ts"
+    no_config
+
+    with_config biome colors false
+    OUT=$(biome check --reporter=json errors.ts 2>/dev/null | prettyout-biome || true)
+    check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
+    no_config
 else
     skip "biome"
 fi
