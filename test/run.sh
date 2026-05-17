@@ -487,8 +487,8 @@ fi
 section "cargo clippy"
 FIXTURES_CLIPPY=/project/test/fixtures/cargo-clippy
 if has_tool cargo; then
-    # errors fixture — 3 clippy warnings (needless_return, useless_vec, vec_init_then_push)
-    cp -r "$FIXTURES_CLIPPY/errors" /tmp/t-cargo-errors
+    # errors fixture — see test/fixtures/cargo-clippy/errors/src/main.rs
+    rm -rf /tmp/t-cargo-errors && cp -r "$FIXTURES_CLIPPY/errors" /tmp/t-cargo-errors
     cd /tmp/t-cargo-errors && no_config
 
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
@@ -501,28 +501,29 @@ if has_tool cargo; then
     # artifacts filtered: only 3 clippy warnings counted, not compiler-artifact/build-finished entries
     check "errors: artifact filtering (3 issues)" "$OUT" "3 issues"
 
-    with_config cargo-clippy group_by file
+    cd /tmp/t-cargo-errors && with_config cargo-clippy group_by file
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "group_by:file: shows filename"  "$OUT" "src/main.rs"
     no_config
 
-    with_config cargo-clippy colors false
+    cd /tmp/t-cargo-errors && with_config cargo-clippy colors false
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check_absent "colors:false: no ANSI codes" "$OUT" $'\033['
     no_config
 
     # clean fixture — no warnings
-    cp -r "$FIXTURES_CLIPPY/clean" /tmp/t-cargo-clean
+    rm -rf /tmp/t-cargo-clean && cp -r "$FIXTURES_CLIPPY/clean" /tmp/t-cargo-clean
     cd /tmp/t-cargo-clean && no_config
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "clean: 0 issues" "$OUT" "0 issues · 0 rules · 0 files"
 
     # rustc-warning fixture — unused_variables is a rustc code, not a clippy:: lint
-    cp -r "$FIXTURES_CLIPPY/rustc-warning" /tmp/t-cargo-rustc
+    rm -rf /tmp/t-cargo-rustc && cp -r "$FIXTURES_CLIPPY/rustc-warning" /tmp/t-cargo-rustc
     cd /tmp/t-cargo-rustc && no_config
     OUT=$(cargo clippy --message-format=json 2>/dev/null | prettyout-cargo-clippy || true)
     check "rustc code: shown without clippy:: prefix" "$OUT" "unused_variables"
     check_absent "rustc code: no clippy:: prefix" "$OUT" "clippy::unused_variables"
+    check "rustc code: issue count" "$OUT" "1 issue"
 else
     skip "cargo"
 fi
