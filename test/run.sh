@@ -584,6 +584,18 @@ if has_tool trivy; then
     check "vuln scan: shows fix version"    "$OUT" "fix:"
     check "vuln scan: summary line"         "$OUT" "severity levels"
 
+    # Check CRITICAL appears before HIGH in output
+    CRITICAL_LINE=$(echo "$OUT" | grep -n "CRITICAL" | head -1 | cut -d: -f1)
+    HIGH_LINE=$(echo "$OUT" | grep -n "HIGH" | head -1 | cut -d: -f1)
+    if [ -n "$CRITICAL_LINE" ] && [ -n "$HIGH_LINE" ] && [ "$CRITICAL_LINE" -lt "$HIGH_LINE" ]; then
+        green "  PASS  vuln scan: CRITICAL before HIGH"
+        PASS=$((PASS+1))
+    else
+        red   "  FAIL  vuln scan: CRITICAL before HIGH"
+        dim   "        CRITICAL_LINE=$CRITICAL_LINE HIGH_LINE=$HIGH_LINE"
+        FAIL=$((FAIL+1))
+    fi
+
     # colors:false — no ANSI codes
     with_config trivy colors false
     OUT=$(trivy fs --format=json --quiet /tmp/t-trivy 2>/dev/null | prettyout-trivy | cat || true)
@@ -598,6 +610,10 @@ if has_tool trivy; then
     # null Vulnerabilities field — must not crash
     OUT=$(printf '{"Results":[{"Target":"test.txt","Vulnerabilities":null}]}' | prettyout-trivy || true)
     check "null Vulnerabilities: no crash" "$OUT" "No vulnerabilities found."
+
+    # CVE with no fix — FixedVersion empty → "no fix available"
+    OUT=$(printf '{"Results":[{"Target":"req.txt","Vulnerabilities":[{"VulnerabilityID":"CVE-2099-9999","PkgName":"somepkg","InstalledVersion":"1.0","FixedVersion":"","Severity":"HIGH"}]}]}' | prettyout-trivy || true)
+    check "no fix available: shown for unfixed CVE" "$OUT" "no fix available"
 
     # Empty stdin — error to stderr, exit 1
     OUT=$(echo -n '' | prettyout-trivy 2>&1 || true)
