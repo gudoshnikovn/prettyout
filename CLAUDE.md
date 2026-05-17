@@ -130,9 +130,9 @@ Things that have bitten us before — check these explicitly:
 | ANSI codes leaking into non-color mode | bandit | Gate all color calls on `cfg.Colors`; use `SeverityColor(sev, cfg.Colors)` |
 | Duplicate issues per-rule (same file+line) | pylint | Deduplicate by `(file, line)` within each rule group before printing |
 | Wrong field for file path in imports | eslint | `result.filePath` is the top-level key, not a per-message field |
-| `location.path` treated as string, actually object | biome | biome JSON has `location.path.file` — access the nested `.file` field |
-| Plugin output piped to stderr, not stdout | stylelint | Ensure `os.Stdin` → plugin → `os.Stdout`; stderr from tool must not bleed through |
-| Null `Issues` field causes crash | golangci-lint | Guard `if report.Issues == nil` before ranging over issues |
+| `location.path` treated as object `{file: string}`, actually plain string in biome 2.x | biome | biome 2.x changed `location.path` from `{file: string}` to a plain string — access `d.Location.Path` directly, not `.file` |
+| stylelint writes JSON to stderr, not stdout; paths are absolute | stylelint | Pipe with `2>&1 >/dev/null` so stderr reaches the plugin's stdin; also wrap all source paths with `ResolvePath(f.Source, cfg)` since stylelint emits absolute paths |
+| Empty stdout causes JSON parse crash | golangci-lint | golangci-lint exits with code 3 and produces no stdout on infrastructure errors (e.g. Go version mismatch); guard with `if len(strings.TrimSpace(string(data))) == 0` and treat as 0 issues |
 | `cp -r` without clearing dest causes stale test fixtures | test/run.sh, Docker | Run `rm -rf dest && cp -r src dest` when copying test fixtures into container |
 
 ---
