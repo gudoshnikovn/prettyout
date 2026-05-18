@@ -232,6 +232,10 @@ func RunFromArgs(args []string) int {
 
 func Execute(d Decision) int {
 	if !d.Intercept {
+		if _, err := exec.LookPath(d.RealCmd); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: command not found\n", d.RealCmd)
+			return 127
+		}
 		cmd := exec.Command(d.RealCmd, d.OriginalArgs...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
@@ -278,7 +282,12 @@ func Execute(d Decision) int {
 		}
 	}
 
+	if _, err := exec.LookPath(d.RealCmd); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: command not found\n", d.RealCmd)
+		return 127
+	}
 	if err := toolCmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "prettyout: failed to start %s: %v\n", d.RealCmd, err)
 		return 1
 	}
 	if err := pluginCmd.Start(); err != nil {
