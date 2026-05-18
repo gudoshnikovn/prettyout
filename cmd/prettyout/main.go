@@ -35,6 +35,8 @@ func main() {
 		runEnabled(args)
 	case "_run":
 		os.Exit(runner.RunFromArgs(args))
+	case "run":
+		runRun(args)
 	case "status":
 		runStatus()
 	case "doctor":
@@ -60,6 +62,7 @@ func printUsage() {
 	fmt.Println(`Usage:
   prettyout setup              Add shell hook to your rc file
   prettyout hook <shell>       Print shell hook code (zsh|bash)
+  prettyout run <tool> [args]  Run tool with optional format overrides (--raw, --group-by, --sort, --only-rules, --only-files)
   prettyout enable <tool>      Enable pretty output for a tool
   prettyout disable <tool>     Disable pretty output for a tool
   prettyout list               Show all tools and their status
