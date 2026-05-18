@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 const ansiReset = "\033[0m"
@@ -101,4 +103,57 @@ func trimSpace(b []byte) []byte {
 		end--
 	}
 	return b[start:end]
+}
+
+// SortOrder sorts a slice of rule/file names by the given strategy.
+// sortBy: "" or "alpha" → alphabetical; "count" → descending by count, alpha tiebreak.
+// Returns a new sorted slice; does not modify the input.
+func SortOrder(order []string, counts map[string]int, sortBy string) []string {
+	out := make([]string, len(order))
+	copy(out, order)
+	if sortBy == "count" {
+		sort.Slice(out, func(i, j int) bool {
+			ci, cj := counts[out[i]], counts[out[j]]
+			if ci != cj {
+				return ci > cj // descending
+			}
+			return out[i] < out[j] // alpha tiebreak
+		})
+	} else {
+		sort.Strings(out)
+	}
+	return out
+}
+
+// FilterRuleOrder returns only the rules that are in onlyRules.
+// If onlyRules is empty, returns order unchanged.
+func FilterRuleOrder(order []string, onlyRules []string) []string {
+	if len(onlyRules) == 0 {
+		return order
+	}
+	allowed := make(map[string]bool, len(onlyRules))
+	for _, r := range onlyRules {
+		allowed[r] = true
+	}
+	out := order[:0:0] // empty slice, same backing if reused
+	for _, r := range order {
+		if allowed[r] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// MatchesFileFilter returns true if path starts with any prefix in onlyFiles.
+// If onlyFiles is empty, returns true (no filter).
+func MatchesFileFilter(path string, onlyFiles []string) bool {
+	if len(onlyFiles) == 0 {
+		return true
+	}
+	for _, prefix := range onlyFiles {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
 }
