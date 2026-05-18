@@ -1,0 +1,7 @@
+FROM python
+RUN apt-get update && apt-get install -y build-essential libssl-dev
+RUN wget https://example.com/worker.tar.gz
+COPY requirements.txt /app/
+WORKDIR /app
+RUN pip install -r requirements.txt
+CMD ["python", "worker.py"]

@@ -13,13 +13,17 @@ type location struct {
 	Row int `json:"row"`
 }
 
+type fixInfo struct {
+	Applicability string `json:"applicability"`
+}
+
 type issue struct {
-	Code        string      `json:"code"`
-	Message     string      `json:"message"`
-	Filename    string      `json:"filename"`
-	Location    location    `json:"location"`
-	EndLocation location    `json:"end_location"`
-	Fix         any         `json:"fix"`
+	Code        string   `json:"code"`
+	Message     string   `json:"message"`
+	Filename    string   `json:"filename"`
+	Location    location `json:"location"`
+	EndLocation location `json:"end_location"`
+	Fix         *fixInfo `json:"fix"`
 }
 
 func main() {
@@ -112,17 +116,7 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 	}
 
 	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), totalFiles))
-
-	fixable := 0
-	for _, iss := range issues {
-		if iss.Fix != nil {
-			fixable++
-		}
-	}
-	if fixable > 0 {
-		fmt.Printf("  ↳ %d fixable with --fix\n", fixable)
-	}
-
+	printFixHint(issues)
 	return nil
 }
 
@@ -200,16 +194,29 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 	}
 
 	fmt.Println(formatter.Summary(len(issues), len(ruleSeen), len(fileOrder)))
-	fixable := 0
+	printFixHint(issues)
+	return nil
+}
+
+func printFixHint(issues []issue) {
+	safe, unsafe := 0, 0
 	for _, iss := range issues {
-		if iss.Fix != nil {
-			fixable++
+		if iss.Fix == nil {
+			continue
+		}
+		if strings.EqualFold(iss.Fix.Applicability, "unsafe") {
+			unsafe++
+		} else {
+			safe++
 		}
 	}
-	if fixable > 0 {
-		fmt.Printf("  ↳ %d fixable with --fix\n", fixable)
+	if safe > 0 && unsafe > 0 {
+		fmt.Printf("  ↳ %d fixable with --fix (%d more with --unsafe-fixes)\n", safe, unsafe)
+	} else if safe > 0 {
+		fmt.Printf("  ↳ %d fixable with --fix\n", safe)
+	} else if unsafe > 0 {
+		fmt.Printf("  ↳ %d fixable with --unsafe-fixes\n", unsafe)
 	}
-	return nil
 }
 
 func countDistinctFiles(issues []issue, cfg formatter.Config) int {
