@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gudoshnikov_na/prettyout/internal/completion"
 	"github.com/gudoshnikov_na/prettyout/internal/config"
 	"github.com/gudoshnikov_na/prettyout/internal/registry"
 )
 
 // Generate returns shell code to be eval'd by the user's shell.
 // Each tool and launcher gets a one-liner that delegates to `prettyout _run`.
+// Completion is included so a single eval handles both interception and tab completion.
 func Generate(shell string, reg *registry.Registry, cfg *config.Config) string {
 	if cfg.CIMode == "never" {
 		return ""
@@ -32,6 +34,10 @@ func Generate(shell string, reg *registry.Registry, cfg *config.Config) string {
 	}
 	for l := range launchers {
 		fmt.Fprintf(&b, "\n%s() { prettyout _run %s \"$@\"; }\n", l, l)
+	}
+
+	if comp, err := completion.Generate(shell, reg); err == nil {
+		fmt.Fprintf(&b, "\n%s", comp)
 	}
 
 	return b.String()

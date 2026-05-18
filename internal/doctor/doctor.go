@@ -30,10 +30,7 @@ func Run(reg *registry.Registry, cfg *config.Config) []Check {
 	checks = append(checks, checkHook(rc))
 
 	for _, name := range reg.SortedToolNames() {
-		if !cfg.Enabled[name] {
-			continue
-		}
-		checks = append(checks, checkPlugin(name, reg.Tools[name]))
+		checks = append(checks, checkTool(name, reg.Tools[name], cfg.Enabled[name]))
 	}
 
 	home, _ := os.UserHomeDir()
@@ -66,17 +63,35 @@ func checkHook(rcPath string) Check {
 	}
 }
 
-func checkPlugin(name string, tc registry.ToolConfig) Check {
-	_, err := exec.LookPath(tc.Plugin)
-	if err == nil {
-		return Check{Name: "plugin-" + name, OK: true, Message: tc.Plugin + " found in PATH"}
+func checkTool(name string, tc registry.ToolConfig, enabled bool) Check {
+	_, toolErr := exec.LookPath(name)
+	_, pluginErr := exec.LookPath(tc.Plugin)
+
+	toolMark := "✓"
+	if toolErr != nil {
+		toolMark = "✗"
 	}
-	return Check{
-		Name:    "plugin-" + name,
-		OK:      false,
-		Message: tc.Plugin + " not found in PATH",
-		Hint:    "prettyout install " + name,
+	pluginMark := "✓"
+	if pluginErr != nil {
+		pluginMark = "✗"
 	}
+
+	status := "disabled"
+	if enabled {
+		status = "enabled"
+	}
+
+	ok := pluginErr == nil && (toolErr == nil || !enabled)
+	msg := fmt.Sprintf("%-16s [%s]  tool:%s  plugin:%s", name, status, toolMark, pluginMark)
+
+	var hint string
+	if pluginErr != nil {
+		hint = "prettyout install " + name
+	} else if toolErr != nil && enabled {
+		hint = name + " binary not found in PATH"
+	}
+
+	return Check{Name: "tool-" + name, OK: ok, Message: msg, Hint: hint}
 }
 
 func checkConfigFile(path, label string) Check {

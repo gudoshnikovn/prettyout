@@ -36,23 +36,23 @@ func TestCheckHook_fileMissing(t *testing.T) {
 	}
 }
 
-func TestCheckPlugin_installed(t *testing.T) {
+func TestCheckTool_pluginInstalled(t *testing.T) {
 	dir := t.TempDir()
 	fake := filepath.Join(dir, "prettyout-ruff")
 	os.WriteFile(fake, []byte("#!/bin/sh\n"), 0755)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	tc := registry.ToolConfig{Plugin: "prettyout-ruff"}
-	c := checkPlugin("ruff", tc)
+	c := checkTool("ruff", tc, false)
 	if !c.OK {
-		t.Errorf("expected plugin found: %s", c.Message)
+		t.Errorf("expected OK when plugin found and tool disabled: %s", c.Message)
 	}
 }
 
-func TestCheckPlugin_notInstalled(t *testing.T) {
+func TestCheckTool_pluginMissing(t *testing.T) {
 	tc := registry.ToolConfig{Plugin: "prettyout-definitely-not-installed-xyz"}
-	c := checkPlugin("sometool", tc)
+	c := checkTool("sometool", tc, false)
 	if c.OK {
-		t.Error("expected plugin not found")
+		t.Error("expected not OK when plugin missing")
 	}
 	if c.Hint == "" {
 		t.Error("expected hint for missing plugin")

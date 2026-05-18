@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/gudoshnikov_na/prettyout/internal/config"
 	"github.com/gudoshnikov_na/prettyout/internal/install"
@@ -15,8 +16,8 @@ func runList(args []string) {
 	reg.Merge(cfg.CustomTools)
 
 	if available {
-		fmt.Println("Tool             Status     Installed")
-		fmt.Println("---------------  ---------  ---------")
+		fmt.Println("Tool             Status     Tool  Plugin")
+		fmt.Println("---------------  ---------  ----  ----------------------")
 		for _, name := range reg.SortedToolNames() {
 			tc := reg.Tools[name]
 			status := "—"
@@ -27,23 +28,31 @@ func runList(args []string) {
 					status = "disabled"
 				}
 			}
-			installedStr := "✗  prettyout install " + name
-			if install.IsInstalled(tc) {
-				installedStr = "✓"
+			toolBin := "✗"
+			if _, err := exec.LookPath(name); err == nil {
+				toolBin = "✓"
 			}
-			fmt.Printf("%-16s %-10s %s\n", name, status, installedStr)
+			pluginBin := "✗  prettyout install " + name
+			if install.IsInstalled(tc) {
+				pluginBin = "✓"
+			}
+			fmt.Printf("%-16s %-10s %-4s  %s\n", name, status, toolBin, pluginBin)
 		}
 		return
 	}
 
-	fmt.Println("Tool             Status     Plugin")
-	fmt.Println("---------------  ---------  ----------------------")
+	fmt.Println("Tool             Status     Binary  Plugin")
+	fmt.Println("---------------  ---------  ------  ----------------------")
 	for _, name := range reg.SortedToolNames() {
 		tc := reg.Tools[name]
 		status := "disabled"
 		if cfg.Enabled[name] {
 			status = "enabled"
 		}
-		fmt.Printf("%-16s %-10s %s\n", name, status, tc.Plugin)
+		bin := "✗"
+		if _, err := exec.LookPath(name); err == nil {
+			bin = "✓"
+		}
+		fmt.Printf("%-16s %-10s %-6s  %s\n", name, status, bin, tc.Plugin)
 	}
 }
