@@ -76,10 +76,12 @@ func runSetup() {
 	shell := shellName()
 	rcFile := rcFilePath(shell)
 
-	line := fmt.Sprintf(`eval "$(prettyout hook %s)"`, shell)
-
 	data, _ := os.ReadFile(rcFile)
-	if strings.Contains(string(data), "prettyout hook") {
+	content := string(data)
+
+	hookLine := fmt.Sprintf(`eval "$(prettyout hook %s)"`, shell)
+
+	if strings.Contains(content, "prettyout hook") {
 		fmt.Println("prettyout hook already present in", rcFile)
 		return
 	}
@@ -90,7 +92,7 @@ func runSetup() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "\n# prettyout\n%s\n", line)
+	fmt.Fprintf(f, "\n# prettyout\n%s\n", hookLine)
 	fmt.Printf("Added to %s\nRun: source %s\n", rcFile, rcFile)
 }
 
@@ -111,10 +113,18 @@ func runHook(args []string) {
 
 func runDisable(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "prettyout disable: tool name required")
+		fmt.Fprintln(os.Stderr, "prettyout disable: tool name required (or --all)")
 		os.Exit(1)
 	}
 	cfg := config.Load()
+	if args[0] == "--all" {
+		for k := range cfg.Enabled {
+			cfg.Enabled[k] = false
+		}
+		config.Save(cfg)
+		fmt.Println("Disabled all tools")
+		return
+	}
 	cfg.Enabled[args[0]] = false
 	config.Save(cfg)
 	fmt.Printf("Disabled prettyout for %s\n", args[0])
