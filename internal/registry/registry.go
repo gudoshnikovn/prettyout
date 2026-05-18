@@ -27,6 +27,7 @@ type ToolConfig struct {
 	OutputArgs           []string      `yaml:"output_args"`
 	PassthroughFlags     []string      `yaml:"passthrough_flags"`
 	Launchers            []string      `yaml:"launchers"`
+	JSONOnStderr         bool          `yaml:"json_on_stderr"`
 	Install              InstallConfig `yaml:"install"`
 }
 

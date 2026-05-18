@@ -108,6 +108,7 @@ tools:
   stylelint:
     plugin: prettyout-stylelint
     output_args: [--formatter=json]
+    json_on_stderr: true
     launchers: [npx]
     install:
       go: github.com/gudoshnikov_na/prettyout/cmd/prettyout-stylelint

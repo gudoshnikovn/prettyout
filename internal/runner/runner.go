@@ -18,6 +18,7 @@ type Decision struct {
 	OriginalArgs    []string
 	TransformedArgs []string
 	Plugin          string
+	JSONOnStderr    bool
 }
 
 func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.Config, isTTY bool, debug bool) Decision {
@@ -106,6 +107,7 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 			OriginalArgs:    args,
 			TransformedArgs: append(transformed, tc.OutputArgs...),
 			Plugin:          plugin,
+			JSONOnStderr:    tc.JSONOnStderr,
 		}
 	}
 
@@ -165,6 +167,7 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 		OriginalArgs:    args,
 		TransformedArgs: append(transformed, tc.OutputArgs...),
 		Plugin:          plugin,
+		JSONOnStderr:    tc.JSONOnStderr,
 	}
 }
 
@@ -242,24 +245,38 @@ func Execute(d Decision) int {
 		return 0
 	}
 
-	stderrFile, err := os.CreateTemp("", "prettyout-stderr-*")
-	if err != nil {
-		return 1
-	}
-	defer os.Remove(stderrFile.Name())
-	defer stderrFile.Close()
-
 	toolCmd := exec.Command(d.RealCmd, d.TransformedArgs...)
 	toolCmd.Stdin = os.Stdin
-	toolCmd.Stderr = stderrFile
 
 	pluginCmd := exec.Command(d.Plugin)
-	pluginCmd.Stdin, err = toolCmd.StdoutPipe()
-	if err != nil {
-		return 1
-	}
 	pluginCmd.Stdout = os.Stdout
 	pluginCmd.Stderr = os.Stderr
+
+	var (
+		err        error
+		stderrFile *os.File
+	)
+	if d.JSONOnStderr {
+		var stderrPipe io.ReadCloser
+		stderrPipe, err = toolCmd.StderrPipe()
+		if err != nil {
+			return 1
+		}
+		pluginCmd.Stdin = stderrPipe
+		toolCmd.Stdout = io.Discard
+	} else {
+		stderrFile, err = os.CreateTemp("", "prettyout-stderr-*")
+		if err != nil {
+			return 1
+		}
+		defer os.Remove(stderrFile.Name())
+		defer stderrFile.Close()
+		toolCmd.Stderr = stderrFile
+		pluginCmd.Stdin, err = toolCmd.StdoutPipe()
+		if err != nil {
+			return 1
+		}
+	}
 
 	if err := toolCmd.Start(); err != nil {
 		return 1
@@ -273,8 +290,10 @@ func Execute(d Decision) int {
 	toolCmd.Wait()
 	pluginCmd.Wait()
 
-	stderrFile.Seek(0, 0)
-	io.Copy(os.Stderr, stderrFile)
+	if stderrFile != nil {
+		stderrFile.Seek(0, 0)
+		io.Copy(os.Stderr, stderrFile)
+	}
 
 	if toolCmd.ProcessState != nil {
 		return toolCmd.ProcessState.ExitCode()
