@@ -266,3 +266,21 @@ func TestExecute_interceptExitCode(t *testing.T) {
 		t.Errorf("false via intercept = %d, want 1", code)
 	}
 }
+
+func TestDecide_poRaw_forcesPassthrough(t *testing.T) {
+	t.Setenv("PO_RAW", "1")
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), enabledCfg("ruff"), true, false)
+	if d.Intercept {
+		t.Error("PO_RAW=1 should force passthrough")
+	}
+}
+
+func TestDecide_preCommit_treatedAsTTY(t *testing.T) {
+	t.Setenv("PRE_COMMIT", "1")
+	cfg := enabledCfg("ruff")
+	cfg.CIMode = "auto"
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), cfg, false, false)
+	if !d.Intercept {
+		t.Error("PRE_COMMIT=1 should treat non-TTY as TTY")
+	}
+}

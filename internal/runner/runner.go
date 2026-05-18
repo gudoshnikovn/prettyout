@@ -28,13 +28,21 @@ func Decide(toolName string, args []string, reg *registry.Registry, cfg *config.
 		fmt.Fprintf(os.Stderr, "[prettyout] tool=%s args=%v\n", toolName, args)
 	}
 
+	if os.Getenv("PO_RAW") != "" {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[prettyout] PO_RAW set → passthrough\n")
+		}
+		return passthrough
+	}
+
 	if cfg.CIMode == "never" {
 		if debug {
 			fmt.Fprintf(os.Stderr, "[prettyout] ci_mode=never → passthrough\n")
 		}
 		return passthrough
 	}
-	if cfg.CIMode == "auto" && !isTTY {
+	effectiveTTY := isTTY || os.Getenv("PRE_COMMIT") != ""
+	if cfg.CIMode == "auto" && !effectiveTTY {
 		if debug {
 			fmt.Fprintf(os.Stderr, "[prettyout] ci_mode=auto tty=false → passthrough\n")
 		}
