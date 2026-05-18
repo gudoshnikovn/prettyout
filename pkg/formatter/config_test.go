@@ -61,3 +61,47 @@ settings:
 		t.Error("colors should be false when explicitly set to false")
 	}
 }
+
+func TestApplyEnvOverrides_groupBy(t *testing.T) {
+	t.Setenv("PO_GROUP_BY", "file")
+	cfg := DefaultConfig()
+	ApplyEnvOverrides(&cfg)
+	if cfg.GroupBy != "file" {
+		t.Errorf("want GroupBy=file, got %q", cfg.GroupBy)
+	}
+}
+
+func TestApplyEnvOverrides_sort(t *testing.T) {
+	t.Setenv("PO_SORT", "count")
+	cfg := DefaultConfig()
+	ApplyEnvOverrides(&cfg)
+	if cfg.Sort != "count" {
+		t.Errorf("want Sort=count, got %q", cfg.Sort)
+	}
+}
+
+func TestApplyEnvOverrides_onlyRules(t *testing.T) {
+	t.Setenv("PO_ONLY_RULES", "E501, F401")
+	cfg := DefaultConfig()
+	ApplyEnvOverrides(&cfg)
+	if len(cfg.OnlyRules) != 2 || cfg.OnlyRules[0] != "E501" || cfg.OnlyRules[1] != "F401" {
+		t.Errorf("unexpected OnlyRules: %v", cfg.OnlyRules)
+	}
+}
+
+func TestApplyEnvOverrides_onlyFiles(t *testing.T) {
+	t.Setenv("PO_ONLY_FILES", "src/,tests/")
+	cfg := DefaultConfig()
+	ApplyEnvOverrides(&cfg)
+	if len(cfg.OnlyFiles) != 2 || cfg.OnlyFiles[0] != "src/" || cfg.OnlyFiles[1] != "tests/" {
+		t.Errorf("unexpected OnlyFiles: %v", cfg.OnlyFiles)
+	}
+}
+
+func TestApplyEnvOverrides_noVars(t *testing.T) {
+	cfg := DefaultConfig()
+	ApplyEnvOverrides(&cfg)
+	if cfg.GroupBy != "rule" || cfg.Sort != "" || cfg.OnlyRules != nil {
+		t.Error("no env vars should leave config unchanged")
+	}
+}
