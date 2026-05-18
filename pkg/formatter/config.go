@@ -12,7 +12,7 @@ type Config struct {
 	GroupBy          string
 	Colors           bool
 	MaxMessageLength int
-	Sort             string   // "" | "alpha" (default) | "count" | "severity"
+	Sort             string   // "" | "alpha" (default) | "count"
 	OnlyRules        []string // if non-empty, only show rules in this list
 	OnlyFiles        []string // if non-empty, only show files matching these prefixes
 	Extra            map[string]any
