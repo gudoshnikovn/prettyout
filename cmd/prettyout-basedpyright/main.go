@@ -84,11 +84,6 @@ func format(data []byte, cfg formatter.Config) error {
 	return formatByRule(r.GeneralDiagnostics, cfg)
 }
 
-type fileEntry struct {
-	file string
-	line int
-}
-
 type ruleGroup struct {
 	message     string
 	maxSeverity string
@@ -126,12 +121,34 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		rg.files[path][line] = struct{}{}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, code := range ruleOrder {
+		rg := rules[code]
+		n := 0
+		for _, lines := range rg.files {
+			n += len(lines)
+		}
+		ruleCounts[code] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := countDistinctFiles(diags, cfg)
 
 	for _, code := range ruleOrder {
 		rg := rules[code]
+
+		hasMatchingFile := false
+		for _, path := range rg.fileOrder {
+			if formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lines := range rg.files {
 			count += len(lines)
@@ -156,6 +173,9 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		sort.Strings(sortedFiles)
 
 		for _, path := range sortedFiles {
+			if !formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				continue
+			}
 			lineSet := rg.files[path]
 			lines := make([]int, 0, len(lineSet))
 			for l := range lineSet {
@@ -207,6 +227,13 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 		})
 	}
 
+	filteredFileOrder := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filteredFileOrder = append(filteredFileOrder, f)
+		}
+	}
+	fileOrder = filteredFileOrder
 	sort.Strings(fileOrder)
 
 	ruleSeen := map[string]struct{}{}
@@ -224,10 +251,31 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 			return fg.issues[i].line < fg.issues[j].line
 		})
 
-		fmt.Printf("%s — %d %s\n", fg.path, len(fg.issues), formatter.Plural(len(fg.issues), "issue", "issues"))
+		// Pre-filter by OnlyRules
+		filteredIssues := fg.issues[:0:0]
+		for _, e := range fg.issues {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.code == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredIssues = append(filteredIssues, e)
+		}
+		if len(filteredIssues) == 0 {
+			continue
+		}
+
+		fmt.Printf("%s — %d %s\n", fg.path, len(filteredIssues), formatter.Plural(len(filteredIssues), "issue", "issues"))
 
 		lastCode := ""
-		for _, e := range fg.issues {
+		for _, e := range filteredIssues {
 			sevLabel := severityLabel(e.severity)
 			sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 			if cfg.Colors {

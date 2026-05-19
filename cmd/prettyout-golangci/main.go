@@ -62,6 +62,8 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		file := iss.Pos.Filename
 		if file == "" {
 			file = "unknown"
+		} else {
+			file = formatter.ResolvePath(file, cfg)
 		}
 
 		if _, ok := rules[rule]; !ok {
@@ -75,21 +77,47 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		r.fileLines[file] = append(r.fileLines[file], iss.Pos.Line)
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, rule := range ruleOrder {
+		n := 0
+		for _, lines := range rules[rule].fileLines {
+			n += len(lines)
+		}
+		ruleCounts[rule] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
-	totalIssues := 0
+	displayedIssues := 0
+	for _, rule := range ruleOrder {
+		displayedIssues += ruleCounts[rule]
+	}
+
 	totalFiles := map[string]struct{}{}
 	for _, iss := range issues {
-		totalIssues++
 		f := iss.Pos.Filename
 		if f == "" {
 			f = "unknown"
+		} else {
+			f = formatter.ResolvePath(f, cfg)
 		}
 		totalFiles[f] = struct{}{}
 	}
 
 	for _, rule := range ruleOrder {
 		r := rules[rule]
+
+		hasMatchingFile := false
+		for f := range r.fileLines {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lines := range r.fileLines {
 			count += len(lines)
@@ -108,18 +136,21 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		sort.Strings(files)
 
 		for _, f := range files {
+			if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				continue
+			}
 			lines := r.fileLines[f]
 			sort.Ints(lines)
 			lineStrs := make([]string, len(lines))
 			for i, l := range lines {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			fmt.Printf("  - %s — %s %s\n", f, formatter.Plural(len(lines), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 
@@ -140,6 +171,8 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 		file := iss.Pos.Filename
 		if file == "" {
 			file = "unknown"
+		} else {
+			file = formatter.ResolvePath(file, cfg)
 		}
 		if _, ok := fileMap[file]; !ok {
 			fileOrder = append(fileOrder, file)
@@ -151,24 +184,50 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 		})
 	}
 
+	filtered := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filtered = append(filtered, f)
+		}
+	}
+	fileOrder = filtered
 	sort.Strings(fileOrder)
 
-	totalIssues := len(issues)
-	rules := map[string]struct{}{}
+	allRules := map[string]struct{}{}
 	for _, iss := range issues {
 		r := iss.FromLinter
 		if r == "" {
 			r = "unknown"
 		}
-		rules[r] = struct{}{}
+		allRules[r] = struct{}{}
 	}
 
+	totalIssues := 0
 	for _, file := range fileOrder {
 		entries := fileMap[file]
-		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d %s\n", file, len(entries), formatter.Plural(len(entries), "issue", "issues"))
-		prevRule := ""
+		var filteredEntries []lineEntry
 		for _, e := range entries {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.rule == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredEntries = append(filteredEntries, e)
+		}
+		if len(filteredEntries) == 0 {
+			continue
+		}
+		sort.Slice(filteredEntries, func(i, j int) bool { return filteredEntries[i].line < filteredEntries[j].line })
+		fmt.Printf("%s — %d %s\n", file, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
+		prevRule := ""
+		for _, e := range filteredEntries {
 			msg := ""
 			if e.rule != prevRule {
 				msg = " — " + e.message
@@ -177,9 +236,10 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
 		fmt.Println("────────────────────────────────────────────────")
+		totalIssues += len(filteredEntries)
 	}
 
-	fmt.Println(formatter.Summary(totalIssues, len(rules), len(fileOrder)))
+	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))
 	return nil
 }
 

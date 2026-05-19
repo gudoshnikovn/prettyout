@@ -23,6 +23,7 @@ func Run(transform func([]byte) error) {
 // settings to transform. toolName must match the key in prettyout config settings.
 func RunWithConfig(toolName string, transform func([]byte, Config) error) {
 	cfg := LoadConfig(toolName)
+	ApplyEnvOverrides(&cfg)
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "prettyout: read error: %v\n", err)

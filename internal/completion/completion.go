@@ -22,12 +22,19 @@ func Generate(shell string, _ *registry.Registry) (string, error) {
 func generateZsh() string {
 	return `_prettyout() {
   local -a cmds
-  cmds=(setup hook enable disable list install update upgrade doctor status completion)
+  cmds=(setup hook run enable disable list install update upgrade doctor status completion)
   if (( CURRENT == 2 )); then
     _describe 'command' cmds
     return
   fi
   case "$words[2]" in
+    run)
+      if (( CURRENT == 3 )); then
+        local -a runflags
+        runflags=(--raw '--group-by=rule' '--group-by=file' '--sort=count' '--sort=alpha' '--only-rules=' '--only-files=')
+        _describe 'flag' runflags
+      fi
+      ;;
     enable|disable|install|update)
       local -a tools
       tools=(${(f)"$(prettyout _completions tools 2>/dev/null)"})
@@ -44,7 +51,7 @@ func generateBash() string {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   local prev="${COMP_WORDS[COMP_CWORD-1]}"
   if [[ $COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "setup hook enable disable list install update upgrade doctor status completion" -- "$cur"))
+    COMPREPLY=($(compgen -W "setup hook run enable disable list install update upgrade doctor status completion" -- "$cur"))
     return
   fi
   case "$prev" in

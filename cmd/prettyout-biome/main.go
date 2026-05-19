@@ -25,9 +25,10 @@ type biomeReport struct {
 }
 
 type ruleEntry struct {
-	severity string
-	message  string
-	files    map[string]struct{}
+	severity    string
+	message     string
+	files       map[string]struct{}
+	occurrences int
 }
 
 func severityLabel(sev string) string {
@@ -67,6 +68,9 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 			rule = "unknown"
 		}
 		file := d.Location.Path
+		if file != "" {
+			file = formatter.ResolvePath(file, cfg)
+		}
 
 		if _, ok := rules[rule]; !ok {
 			rules[rule] = &ruleEntry{files: map[string]struct{}{}}
@@ -77,36 +81,43 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 			r.message = truncate(d.Message, cfg.MaxMessageLength)
 			r.severity = d.Severity
 		}
+		r.occurrences++
 		if file != "" {
 			r.files[file] = struct{}{}
 		}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, rule := range ruleOrder {
+		ruleCounts[rule] = rules[rule].occurrences
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
+
+	displayedIssues := 0
+	for _, rule := range ruleOrder {
+		displayedIssues += ruleCounts[rule]
+	}
 
 	totalFiles := map[string]struct{}{}
 	for _, d := range diags {
 		if d.Location.Path != "" {
-			totalFiles[d.Location.Path] = struct{}{}
+			totalFiles[formatter.ResolvePath(d.Location.Path, cfg)] = struct{}{}
 		}
 	}
 
 	for _, rule := range ruleOrder {
 		r := rules[rule]
-		count := len(r.files)
-		if count == 0 {
-			count = 1
+
+		hasMatchingFile := false
+		for f := range r.files {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
 		}
-		// count occurrences properly
-		occurrences := 0
-		for _, d := range diags {
-			c := d.Category
-			if c == "" {
-				c = "unknown"
-			}
-			if c == rule {
-				occurrences++
-			}
+		if !hasMatchingFile {
+			continue
 		}
 
 		col := formatter.SeverityColor(r.severity, cfg.Colors)
@@ -116,9 +127,9 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		}
 		label := severityLabel(r.severity)
 		if cfg.Colors {
-			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, occurrences, r.message)
+			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, r.occurrences, r.message)
 		} else {
-			fmt.Printf("[%s] %s (%d) — %s\n", label, rule, occurrences, r.message)
+			fmt.Printf("[%s] %s (%d) — %s\n", label, rule, r.occurrences, r.message)
 		}
 
 		if len(r.files) > 0 {
@@ -129,13 +140,16 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 			}
 			sort.Strings(files)
 			for _, f := range files {
+				if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+					continue
+				}
 				fmt.Printf("  - %s\n", f)
 			}
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(len(diags), len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 
@@ -152,6 +166,8 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 		file := d.Location.Path
 		if file == "" {
 			file = "(unknown)"
+		} else {
+			file = formatter.ResolvePath(file, cfg)
 		}
 		rule := d.Category
 		if rule == "" {
@@ -164,13 +180,40 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 		fileMap[file] = append(fileMap[file], entry{rule: rule, message: truncate(d.Message, cfg.MaxMessageLength)})
 	}
 
+	filtered := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filtered = append(filtered, f)
+		}
+	}
+	fileOrder = filtered
 	sort.Strings(fileOrder)
 
+	totalIssues := 0
 	for _, file := range fileOrder {
 		entries := fileMap[file]
-		fmt.Printf("%s — %d %s\n", file, len(entries), formatter.Plural(len(entries), "issue", "issues"))
-		prevRule := ""
+		var filteredEntries []entry
 		for _, e := range entries {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.rule == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredEntries = append(filteredEntries, e)
+		}
+		if len(filteredEntries) == 0 {
+			continue
+		}
+		fmt.Printf("%s — %d %s\n", file, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
+		prevRule := ""
+		for _, e := range filteredEntries {
 			msg := ""
 			if e.rule != prevRule {
 				msg = " — " + e.message
@@ -179,9 +222,10 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 			fmt.Printf("  %s%s\n", e.rule, msg)
 		}
 		fmt.Println("────────────────────────────────────────────────")
+		totalIssues += len(filteredEntries)
 	}
 
-	fmt.Println(formatter.Summary(len(diags), len(allRules), len(fileOrder)))
+	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))
 	return nil
 }
 
