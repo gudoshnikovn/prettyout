@@ -146,6 +146,11 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
+	displayedIssues := 0
+	for _, rule := range ruleOrder {
+		displayedIssues += ruleCounts[rule]
+	}
+
 	totalFiles := map[string]struct{}{}
 	for _, cl := range items {
 		f, _ := primarySpan(cl)
@@ -197,7 +202,7 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(len(items), len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 

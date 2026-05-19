@@ -88,10 +88,13 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
-	totalIssues := 0
+	displayedIssues := 0
+	for _, rule := range ruleOrder {
+		displayedIssues += ruleCounts[rule]
+	}
+
 	totalFiles := map[string]struct{}{}
 	for _, iss := range issues {
-		totalIssues++
 		f := iss.Pos.Filename
 		if f == "" {
 			f = "unknown"
@@ -135,7 +138,7 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 

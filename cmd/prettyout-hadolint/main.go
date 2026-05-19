@@ -106,6 +106,11 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
+	displayedIssues := 0
+	for _, rule := range ruleOrder {
+		displayedIssues += ruleCounts[rule]
+	}
+
 	totalFiles := map[string]struct{}{}
 	for _, iss := range issues {
 		totalFiles[formatter.ResolvePath(iss.File, cfg)] = struct{}{}
@@ -152,7 +157,7 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(len(issues), len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 

@@ -138,6 +138,11 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
+	displayedIssues := 0
+	for _, key := range ruleOrder {
+		displayedIssues += ruleCounts[key]
+	}
+
 	totalFiles := map[string]struct{}{}
 	for _, m := range msgs {
 		totalFiles[formatter.ResolvePath(m.Path, cfg)] = struct{}{}
@@ -200,13 +205,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	totalIssues := 0
-	for _, r := range rules {
-		for _, lineSet := range r.fileLines {
-			totalIssues += len(lineSet)
-		}
-	}
-	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
 	fmt.Printf("  ↳ rated %.2f/10\n", score)
 	return nil
 }
