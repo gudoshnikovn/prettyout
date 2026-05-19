@@ -105,9 +105,12 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 
 	for _, cl := range items {
 		rule := ruleCode(cl)
-		file, line := primarySpan(cl)
+		rawFile, line := primarySpan(cl)
+		file := rawFile
 		if file == "" {
 			file = "unknown"
+		} else {
+			file = formatter.ResolvePath(file, cfg)
 		}
 
 		if _, ok := rules[rule]; !ok {
@@ -129,13 +132,25 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, rule := range ruleOrder {
+		n := 0
+		for _, lines := range rules[rule].fileLines {
+			n += len(lines)
+		}
+		if n == 0 {
+			n = len(rules[rule].fileLines)
+		}
+		ruleCounts[rule] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := map[string]struct{}{}
 	for _, cl := range items {
 		f, _ := primarySpan(cl)
 		if f != "" {
-			totalFiles[f] = struct{}{}
+			totalFiles[formatter.ResolvePath(f, cfg)] = struct{}{}
 		}
 	}
 
@@ -168,6 +183,9 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		sort.Strings(files)
 
 		for _, f := range files {
+			if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				continue
+			}
 			ls := r.fileLines[f]
 			sort.Ints(ls)
 			if len(ls) == 0 {
@@ -195,9 +213,12 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 
 	for _, cl := range items {
 		rule := ruleCode(cl)
-		file, line := primarySpan(cl)
+		rawFile, line := primarySpan(cl)
+		file := rawFile
 		if file == "" {
 			file = "unknown"
+		} else {
+			file = formatter.ResolvePath(file, cfg)
 		}
 		allRules[rule] = struct{}{}
 		if _, ok := fileMap[file]; !ok {
@@ -206,14 +227,41 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 		fileMap[file] = append(fileMap[file], lineEntry{rule: rule, line: line, message: truncate(cl.Message.Message, cfg.MaxMessageLength)})
 	}
 
+	filtered := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filtered = append(filtered, f)
+		}
+	}
+	fileOrder = filtered
 	sort.Strings(fileOrder)
 
+	totalIssues := 0
 	for _, f := range fileOrder {
 		entries := fileMap[f]
-		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d %s\n", f, len(entries), formatter.Plural(len(entries), "issue", "issues"))
-		prevRule := ""
+		var filteredEntries []lineEntry
 		for _, e := range entries {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.rule == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredEntries = append(filteredEntries, e)
+		}
+		if len(filteredEntries) == 0 {
+			continue
+		}
+		sort.Slice(filteredEntries, func(i, j int) bool { return filteredEntries[i].line < filteredEntries[j].line })
+		fmt.Printf("%s — %d %s\n", f, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
+		prevRule := ""
+		for _, e := range filteredEntries {
 			msg := ""
 			if e.rule != prevRule {
 				msg = " — " + e.message
@@ -226,9 +274,10 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 			}
 		}
 		fmt.Println("────────────────────────────────────────────────")
+		totalIssues += len(filteredEntries)
 	}
 
-	fmt.Println(formatter.Summary(len(items), len(allRules), len(fileOrder)))
+	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))
 	return nil
 }
 

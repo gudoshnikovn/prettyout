@@ -110,6 +110,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 		if key == "" {
 			key = "unknown"
 		}
+		fp := formatter.ResolvePath(m.Path, cfg)
 		if _, ok := rules[key]; !ok {
 			rules[key] = &ruleEntry{fileLines: map[string]map[int]struct{}{}}
 			ruleOrder = append(ruleOrder, key)
@@ -120,17 +121,26 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 			r.severity = pylintSeverity(m.Type)
 			r.display = ruleDisplay(m)
 		}
-		if r.fileLines[m.Path] == nil {
-			r.fileLines[m.Path] = map[int]struct{}{}
+		if r.fileLines[fp] == nil {
+			r.fileLines[fp] = map[int]struct{}{}
 		}
-		r.fileLines[m.Path][m.Line] = struct{}{}
+		r.fileLines[fp][m.Line] = struct{}{}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, key := range ruleOrder {
+		n := 0
+		for _, lineSet := range rules[key].fileLines {
+			n += len(lineSet)
+		}
+		ruleCounts[key] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := map[string]struct{}{}
 	for _, m := range msgs {
-		totalFiles[m.Path] = struct{}{}
+		totalFiles[formatter.ResolvePath(m.Path, cfg)] = struct{}{}
 	}
 
 	for _, key := range ruleOrder {
@@ -168,6 +178,9 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 		sort.Strings(files)
 
 		for _, f := range files {
+			if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				continue
+			}
 			lineSet := r.fileLines[f]
 			ls := make([]int, 0, len(lineSet))
 			for l := range lineSet {
@@ -220,36 +233,59 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 			key = "unknown"
 		}
 		allRules[key] = struct{}{}
-		if _, ok := fileMap[m.Path]; !ok {
-			fileOrder = append(fileOrder, m.Path)
-			fileSeen[m.Path] = map[ruleLineKey]struct{}{}
+		fp := formatter.ResolvePath(m.Path, cfg)
+		if _, ok := fileMap[fp]; !ok {
+			fileOrder = append(fileOrder, fp)
+			fileSeen[fp] = map[ruleLineKey]struct{}{}
 		}
 		rlk := ruleLineKey{rule: key, line: m.Line}
-		if _, seen := fileSeen[m.Path][rlk]; seen {
+		if _, seen := fileSeen[fp][rlk]; seen {
 			continue
 		}
-		fileSeen[m.Path][rlk] = struct{}{}
-		fileMap[m.Path] = append(fileMap[m.Path], lineEntry{rule: key, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
+		fileSeen[fp][rlk] = struct{}{}
+		fileMap[fp] = append(fileMap[fp], lineEntry{rule: key, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
 	}
 
+	filteredOrder := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filteredOrder = append(filteredOrder, f)
+		}
+	}
+	fileOrder = filteredOrder
 	sort.Strings(fileOrder)
 
 	totalIssues := 0
-	for _, entries := range fileMap {
-		totalIssues += len(entries)
-	}
-
 	for _, f := range fileOrder {
 		entries := fileMap[f]
-		sort.Slice(entries, func(i, j int) bool {
-			if entries[i].line != entries[j].line {
-				return entries[i].line < entries[j].line
-			}
-			return entries[i].rule < entries[j].rule
-		})
-		fmt.Printf("%s — %d %s\n", f, len(entries), formatter.Plural(len(entries), "issue", "issues"))
-		prevRule := ""
+		var filteredEntries []lineEntry
 		for _, e := range entries {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.rule == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredEntries = append(filteredEntries, e)
+		}
+		if len(filteredEntries) == 0 {
+			continue
+		}
+		sort.Slice(filteredEntries, func(i, j int) bool {
+			if filteredEntries[i].line != filteredEntries[j].line {
+				return filteredEntries[i].line < filteredEntries[j].line
+			}
+			return filteredEntries[i].rule < filteredEntries[j].rule
+		})
+		fmt.Printf("%s — %d %s\n", f, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
+		prevRule := ""
+		for _, e := range filteredEntries {
 			msg := ""
 			if e.rule != prevRule {
 				msg = " — " + e.message
@@ -258,6 +294,7 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
 		fmt.Println("────────────────────────────────────────────────")
+		totalIssues += len(filteredEntries)
 	}
 
 	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))

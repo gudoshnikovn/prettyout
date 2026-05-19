@@ -136,11 +136,15 @@ func formatByFile(report trivyReport, cfg formatter.Config) error {
 		if len(result.Vulnerabilities) == 0 {
 			continue
 		}
+		target := formatter.ResolvePath(result.Target, cfg)
+		if !formatter.MatchesFileFilter(target, cfg.OnlyFiles) {
+			continue
+		}
 		targets++
 		vulns := result.Vulnerabilities
 		totalVulns += len(vulns)
 
-		fmt.Println(result.Target)
+		fmt.Println(target)
 
 		// Sort by severity rank then CVE ID
 		sort.Slice(vulns, func(i, j int) bool {
