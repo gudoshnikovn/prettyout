@@ -110,6 +110,18 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 
 	for _, rid := range ruleOrder {
 		r := rules[rid]
+
+		hasMatchingFile := false
+		for fp := range r.fileLines {
+			if formatter.MatchesFileFilter(fp, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lines := range r.fileLines {
 			count += len(lines)

@@ -150,6 +150,18 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 
 	for _, key := range ruleOrder {
 		r := rules[key]
+
+		hasMatchingFile := false
+		for f := range r.fileLines {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lineSet := range r.fileLines {
 			count += len(lineSet)

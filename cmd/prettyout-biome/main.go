@@ -108,6 +108,18 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 
 	for _, rule := range ruleOrder {
 		r := rules[rule]
+
+		hasMatchingFile := false
+		for f := range r.files {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		col := formatter.SeverityColor(r.severity, cfg.Colors)
 		reset := ""
 		if cfg.Colors {

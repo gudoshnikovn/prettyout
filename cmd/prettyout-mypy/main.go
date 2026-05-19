@@ -110,6 +110,18 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 
 	for _, rule := range ruleOrder {
 		r := rules[rule]
+
+		hasMatchingFile := false
+		for f := range r.fileLines {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lineSet := range r.fileLines {
 			count += len(lineSet)

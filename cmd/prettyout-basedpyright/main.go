@@ -137,6 +137,18 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 
 	for _, code := range ruleOrder {
 		rg := rules[code]
+
+		hasMatchingFile := false
+		for _, path := range rg.fileOrder {
+			if formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lines := range rg.files {
 			count += len(lines)

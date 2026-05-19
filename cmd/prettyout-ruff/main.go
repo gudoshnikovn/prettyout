@@ -99,6 +99,18 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 
 	for _, code := range ruleOrder {
 		rg := rules[code]
+
+		hasMatchingFile := false
+		for _, path := range rg.order {
+			if formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, fl := range rg.files {
 			count += len(fl.lines)

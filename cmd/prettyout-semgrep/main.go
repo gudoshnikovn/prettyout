@@ -126,6 +126,18 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 
 	for _, rule := range ruleOrder {
 		re := rules[rule]
+
+		hasMatchingFile := false
+		for f := range re.fileLines {
+			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				hasMatchingFile = true
+				break
+			}
+		}
+		if !hasMatchingFile {
+			continue
+		}
+
 		count := 0
 		for _, lines := range re.fileLines {
 			count += len(lines)
