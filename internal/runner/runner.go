@@ -312,6 +312,11 @@ func Execute(d Decision) int {
 		io.Copy(os.Stderr, stderrFile)
 	}
 
+	// If plugin failed (formatter error), report it
+	if pluginCmd.ProcessState != nil && pluginCmd.ProcessState.ExitCode() != 0 {
+		return pluginCmd.ProcessState.ExitCode()
+	}
+
 	if toolCmd.ProcessState != nil {
 		return toolCmd.ProcessState.ExitCode()
 	}

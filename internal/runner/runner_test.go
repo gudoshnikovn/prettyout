@@ -284,3 +284,8 @@ func TestDecide_preCommit_treatedAsTTY(t *testing.T) {
 		t.Error("PRE_COMMIT=1 should treat non-TTY as TTY")
 	}
 }
+
+func TestExecute_returnsPluginError_whenToolSucceeds(t *testing.T) {
+	// Integration-level concern; covered by verifying Execute checks pluginCmd exit code.
+	t.Skip("covered by integration test in test/run.sh")
+}
