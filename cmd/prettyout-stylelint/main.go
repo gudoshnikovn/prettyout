@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -58,7 +59,8 @@ func format(data []byte, cfg formatter.Config) error {
 		return nil
 	}
 	if err := json.Unmarshal(data, &files); err != nil {
-		return fmt.Errorf("invalid JSON: %w", err)
+		fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(string(data)))
+		return fmt.Errorf("stylelint error (non-JSON output)")
 	}
 
 	var allIssues []issueItem
