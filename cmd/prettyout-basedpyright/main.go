@@ -239,9 +239,8 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 			return fg.issues[i].line < fg.issues[j].line
 		})
 
-		fmt.Printf("%s — %d %s\n", fg.path, len(fg.issues), formatter.Plural(len(fg.issues), "issue", "issues"))
-
-		lastCode := ""
+		// Pre-filter by OnlyRules
+		filteredIssues := fg.issues[:0:0]
 		for _, e := range fg.issues {
 			if len(cfg.OnlyRules) > 0 {
 				found := false
@@ -255,6 +254,16 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 					continue
 				}
 			}
+			filteredIssues = append(filteredIssues, e)
+		}
+		if len(filteredIssues) == 0 {
+			continue
+		}
+
+		fmt.Printf("%s — %d %s\n", fg.path, len(filteredIssues), formatter.Plural(len(filteredIssues), "issue", "issues"))
+
+		lastCode := ""
+		for _, e := range filteredIssues {
 			sevLabel := severityLabel(e.severity)
 			sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 			if cfg.Colors {
