@@ -84,11 +84,6 @@ func format(data []byte, cfg formatter.Config) error {
 	return formatByRule(r.GeneralDiagnostics, cfg)
 }
 
-type fileEntry struct {
-	file string
-	line int
-}
-
 type ruleGroup struct {
 	message     string
 	maxSeverity string
