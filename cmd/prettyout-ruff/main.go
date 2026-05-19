@@ -82,7 +82,17 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 		rg.files[path].lines = append(rg.files[path].lines, iss.Location.Row)
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, code := range ruleOrder {
+		rg := rules[code]
+		n := 0
+		for _, fl := range rg.files {
+			n += len(fl.lines)
+		}
+		ruleCounts[code] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalIssues := len(issues)
 	totalFiles := countDistinctFiles(issues, cfg)
@@ -107,6 +117,9 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 		sort.Strings(sortedFiles)
 
 		for _, path := range sortedFiles {
+			if !formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				continue
+			}
 			fl := rg.files[path]
 			sort.Ints(fl.lines)
 			lineLabel := formatLines(fl.lines)
@@ -155,6 +168,13 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 		})
 	}
 
+	filtered := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filtered = append(filtered, f)
+		}
+	}
+	fileOrder = filtered
 	sort.Strings(fileOrder)
 
 	// Count distinct rules for summary
@@ -179,6 +199,18 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 		// Track last seen rule to suppress repeated messages
 		lastCode := ""
 		for _, e := range fg.issues {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.code == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
 			msg := ""
 			if e.code != lastCode {
 				msg = "  — " + e.message

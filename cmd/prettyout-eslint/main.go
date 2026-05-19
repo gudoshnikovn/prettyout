@@ -96,7 +96,17 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, rid := range ruleOrder {
+		r := rules[rid]
+		n := 0
+		for _, lines := range r.fileLines {
+			n += len(lines)
+		}
+		ruleCounts[rid] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	for _, rid := range ruleOrder {
 		r := rules[rid]
@@ -124,6 +134,9 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		sort.Strings(filesSorted)
 
 		for _, fp := range filesSorted {
+			if !formatter.MatchesFileFilter(fp, cfg.OnlyFiles) {
+				continue
+			}
 			lines := r.fileLines[fp]
 			sort.Ints(lines)
 			lineStrs := make([]string, len(lines))
@@ -155,12 +168,30 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 			continue
 		}
 		fp := formatter.ResolvePath(f.FilePath, cfg)
+		if !formatter.MatchesFileFilter(fp, cfg.OnlyFiles) {
+			continue
+		}
 		entries := make([]lineEntry, 0, len(f.Messages))
 		for _, m := range f.Messages {
 			rid := ruleId(m)
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if rid == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
 			allRules[rid] = struct{}{}
 			entries = append(entries, lineEntry{rule: rid, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
 			totalIssues++
+		}
+		if len(entries) == 0 {
+			continue
 		}
 		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
 		fmt.Printf("%s — %d %s\n", fp, len(entries), formatter.Plural(len(entries), "issue", "issues"))

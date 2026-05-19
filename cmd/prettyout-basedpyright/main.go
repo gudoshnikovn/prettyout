@@ -126,7 +126,17 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		rg.files[path][line] = struct{}{}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, code := range ruleOrder {
+		rg := rules[code]
+		n := 0
+		for _, lines := range rg.files {
+			n += len(lines)
+		}
+		ruleCounts[code] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := countDistinctFiles(diags, cfg)
 
@@ -156,6 +166,9 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		sort.Strings(sortedFiles)
 
 		for _, path := range sortedFiles {
+			if !formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
+				continue
+			}
 			lineSet := rg.files[path]
 			lines := make([]int, 0, len(lineSet))
 			for l := range lineSet {
@@ -207,6 +220,13 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 		})
 	}
 
+	filteredFileOrder := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filteredFileOrder = append(filteredFileOrder, f)
+		}
+	}
+	fileOrder = filteredFileOrder
 	sort.Strings(fileOrder)
 
 	ruleSeen := map[string]struct{}{}
@@ -228,6 +248,18 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 
 		lastCode := ""
 		for _, e := range fg.issues {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.code == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
 			sevLabel := severityLabel(e.severity)
 			sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 			if cfg.Colors {

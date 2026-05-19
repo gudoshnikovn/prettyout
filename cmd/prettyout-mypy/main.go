@@ -91,7 +91,17 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 		r.fileLines[m.File][m.Line] = struct{}{}
 	}
 
-	sort.Strings(ruleOrder)
+	ruleCounts := make(map[string]int, len(ruleOrder))
+	for _, rule := range ruleOrder {
+		r := rules[rule]
+		n := 0
+		for _, lineSet := range r.fileLines {
+			n += len(lineSet)
+		}
+		ruleCounts[rule] = n
+	}
+	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
+	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := map[string]struct{}{}
 	for _, m := range msgs {
@@ -124,6 +134,9 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 		sort.Strings(files)
 
 		for _, f := range files {
+			if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+				continue
+			}
 			lineSet := r.fileLines[f]
 			ls := make([]int, 0, len(lineSet))
 			for l := range lineSet {
@@ -163,14 +176,40 @@ func formatByFile(msgs []mypyMsg, cfg formatter.Config) error {
 		fileMap[m.File] = append(fileMap[m.File], lineEntry{rule: rule, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
 	}
 
+	filteredFileOrder := fileOrder[:0:0]
+	for _, f := range fileOrder {
+		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
+			filteredFileOrder = append(filteredFileOrder, f)
+		}
+	}
+	fileOrder = filteredFileOrder
 	sort.Strings(fileOrder)
 
 	for _, f := range fileOrder {
 		entries := fileMap[f]
 		sort.Slice(entries, func(i, j int) bool { return entries[i].line < entries[j].line })
-		fmt.Printf("%s — %d %s\n", f, len(entries), formatter.Plural(len(entries), "issue", "issues"))
 		prevRule := ""
+		filteredEntries := entries[:0:0]
 		for _, e := range entries {
+			if len(cfg.OnlyRules) > 0 {
+				found := false
+				for _, r := range cfg.OnlyRules {
+					if e.rule == r {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			filteredEntries = append(filteredEntries, e)
+		}
+		if len(filteredEntries) == 0 {
+			continue
+		}
+		fmt.Printf("%s — %d %s\n", f, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
+		for _, e := range filteredEntries {
 			msg := ""
 			if e.rule != prevRule {
 				msg = " — " + e.message
