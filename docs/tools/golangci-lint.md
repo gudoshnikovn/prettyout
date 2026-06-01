@@ -51,7 +51,7 @@ main.go:6:2: ineffectual assignment to x (ineffassign)
 ```
 ineffassign (1) — ineffectual assignment to x
 Affected files:
-  - main.go — lines 6
+  - main.go — line 6
 ────────────────────────────────────────────────
 1 issue · 1 rule · 1 file
 ```

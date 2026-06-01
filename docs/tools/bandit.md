@@ -108,19 +108,19 @@ Files skipped (0):
 ```
 B324 (HIGH/HIGH) (1) — Use of weak MD5 hash for security. Consider usedforsecurity=False
 Affected files:
-  - errors.py — lines 3
+  - errors.py — line 3
 ────────────────────────────────────────────────
 B404 (LOW/HIGH) (1) — Consider possible security implications associated with the subprocess module.
 Affected files:
-  - errors.py — lines 2
+  - errors.py — line 2
 ────────────────────────────────────────────────
 B602 (LOW/HIGH) (1) — subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell
 Affected files:
-  - errors.py — lines 4
+  - errors.py — line 4
 ────────────────────────────────────────────────
 B607 (LOW/HIGH) (1) — Starting a process with a partial executable path
 Affected files:
-  - errors.py — lines 4
+  - errors.py — line 4
 ────────────────────────────────────────────────
 4 issues · 4 rules · 1 file
 ```
