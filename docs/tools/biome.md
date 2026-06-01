@@ -29,15 +29,15 @@ statement.","category":"lint/suspicious/noDebugger","location":{"path":"errors.t
 
 ### Group by rule (default)
 ```
-format (1) — Formatter would have printed the following content:
+[ERROR] format (1) — Formatter would have printed the following content:
 Affected files:
   - errors.ts
 ────────────────────────────────────────────────
-lint/suspicious/noDebugger (1) — This is an unexpected use of the debugger statement.
+[ERROR] lint/suspicious/noDebugger (1) — This is an unexpected use of the debugger statement.
 Affected files:
   - errors.ts
 ────────────────────────────────────────────────
-lint/suspicious/noDoubleEquals (1) — Using == may be unsafe if you are relying on type coercion.
+[ERROR] lint/suspicious/noDoubleEquals (1) — Using == may be unsafe if you are relying on type coercion.
 Affected files:
   - errors.ts
 ────────────────────────────────────────────────

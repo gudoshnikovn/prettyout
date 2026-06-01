@@ -23,13 +23,13 @@
 
 ### Group by rule (default)
 ```
-color-no-invalid-hex (1) — Invalid hex color "#gggggg" (color-no-invalid-hex)
+[ERROR] color-no-invalid-hex (1) — Invalid hex color "#gggggg" (color-no-invalid-hex)
 Affected files:
-  - errors.css — lines 1
+  - errors.css — line 1
 ────────────────────────────────────────────────
-font-family-no-unknown-names (1) — Unknown rule font-family-no-unknown-names.
+[ERROR] font-family-no-unknown-names (1) — Unknown rule font-family-no-unknown-names.
 Affected files:
-  - errors.css — lines 1
+  - errors.css — line 1
 ────────────────────────────────────────────────
 2 issues · 2 rules · 1 file
 ```

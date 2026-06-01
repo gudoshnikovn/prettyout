@@ -23,11 +23,11 @@ Found 3 errors in 1 file (checked 1 source file)
 
 ### Group by rule (default)
 ```
-assignment (2) — Incompatible types in assignment (expression has type "str", variable has type "int")
+[ERROR] assignment (2) — Incompatible types in assignment (expression has type "str", variable has type "int")
 Affected files:
   - errors.py — lines 1, 3
 ────────────────────────────────────────────────
-operator (1) — Unsupported operand types for + ("int" and "str")
+[ERROR] operator (1) — Unsupported operand types for + ("int" and "str")
 Affected files:
   - errors.py — line 2
 ────────────────────────────────────────────────

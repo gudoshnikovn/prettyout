@@ -34,25 +34,25 @@ Dockerfile.errors:3 DL3014 warning: Use the `-y` switch to avoid manual input `a
 ### Group by rule (default)
 
 ```
-DL3006 (1) — Always tag the version of an image explicitly
+[WARN] DL3006 (1) — Always tag the version of an image explicitly
 Affected files:
-  - Dockerfile.errors — lines 1
+  - Dockerfile.errors — line 1
 ────────────────────────────────────────────────
-DL3008 (2) — Pin versions in apt get install. Instead of `apt-get install <package>` use `apt-get install <package>=<version>`
+[WARN] DL3008 (2) — Pin versions in apt get install. Instead of `apt-get install <package>` use `apt-get install <package>=<version>`
 Affected files:
   - Dockerfile.errors — lines 2, 3
 ────────────────────────────────────────────────
-DL3014 (2) — Use the `-y` switch to avoid manual input `apt-get -y install <package>`
+[WARN] DL3014 (2) — Use the `-y` switch to avoid manual input `apt-get -y install <package>`
 Affected files:
   - Dockerfile.errors — lines 2, 3
 ────────────────────────────────────────────────
-DL3015 (2) — Avoid additional packages by specifying `--no-install-recommends`
+[INFO] DL3015 (2) — Avoid additional packages by specifying `--no-install-recommends`
 Affected files:
   - Dockerfile.errors — lines 2, 3
 ────────────────────────────────────────────────
-DL3059 (1) — Multiple consecutive `RUN` instructions. Consider consolidation.
+[INFO] DL3059 (1) — Multiple consecutive `RUN` instructions. Consider consolidation.
 Affected files:
-  - Dockerfile.errors — lines 3
+  - Dockerfile.errors — line 3
 ────────────────────────────────────────────────
 8 issues · 5 rules · 1 file
 ```

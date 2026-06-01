@@ -52,15 +52,15 @@ Your code has been rated at 0.00/10
 
 ### Group by rule (default)
 ```
-C0114/missing-module-docstring (1) — Missing module docstring
+[INFO] C0114/missing-module-docstring (1) — Missing module docstring
 Affected files:
   - errors.py — line 1
 ────────────────────────────────────────────────
-E0602/undefined-variable (1) — Undefined variable 'undefined_var'
+[ERROR] E0602/undefined-variable (1) — Undefined variable 'undefined_var'
 Affected files:
   - errors.py — line 2
 ────────────────────────────────────────────────
-W0611/unused-import (1) — Unused import os
+[WARN] W0611/unused-import (1) — Unused import os
 Affected files:
   - errors.py — line 1
 ────────────────────────────────────────────────

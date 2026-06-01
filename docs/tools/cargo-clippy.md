@@ -42,15 +42,15 @@ warning: calls to `push` immediately after creation
 ### Group by rule (default)
 
 ```
-clippy::needless_return (1) — unneeded `return` statement
+[WARN] clippy::needless_return (1) — unneeded `return` statement
 Affected files:
   - src/main.rs — line 6
 ────────────────────────────────────────────────
-clippy::useless_vec (1) — useless use of `vec!`
+[WARN] clippy::useless_vec (1) — useless use of `vec!`
 Affected files:
   - src/main.rs — line 5
 ────────────────────────────────────────────────
-clippy::vec_init_then_push (1) — calls to `push` immediately after creation
+[WARN] clippy::vec_init_then_push (1) — calls to `push` immediately after creation
 Affected files:
   - src/main.rs — line 2
 ────────────────────────────────────────────────

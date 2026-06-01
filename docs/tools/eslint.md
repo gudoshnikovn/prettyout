@@ -27,7 +27,7 @@
 
 ### Group by rule (default)
 ```
-no-undef (1) — 'undefined_var' is not defined.
+[ERROR] no-undef (1) — 'undefined_var' is not defined.
 Affected files:
   - errors.js — line 2
 ────────────────────────────────────────────────

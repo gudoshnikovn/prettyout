@@ -43,17 +43,17 @@ For more information:
 
 ### Group by rule (default)
 ```
-SC2006 (1) — Use $(...) notation instead of legacy backticks `...`.
+[INFO] SC2006 (1) — Use $(...) notation instead of legacy backticks `...`.
 Affected files:
-  - errors.sh — lines 2
+  - errors.sh — line 2
 ────────────────────────────────────────────────
-SC2086 (1) — Double quote to prevent globbing and word splitting.
+[INFO] SC2086 (1) — Double quote to prevent globbing and word splitting.
 Affected files:
-  - errors.sh — lines 3
+  - errors.sh — line 3
 ────────────────────────────────────────────────
-SC2116 (1) — Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
+[INFO] SC2116 (1) — Useless echo? Instead of 'cmd $(echo foo)', just use 'cmd foo'.
 Affected files:
-  - errors.sh — lines 2
+  - errors.sh — line 2
 ────────────────────────────────────────────────
 3 issues · 3 rules · 1 file
 ```
