@@ -160,7 +160,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		fmt.Println("────────────────────────────────────────────────")
 	}
 
-	fmt.Println(formatter.Summary(totalIssues, len(rules), len(totalFiles)))
+	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), len(totalFiles)))
 	return nil
 }
 
