@@ -150,7 +150,7 @@ func formatByRule(issues []shellcheckIssue, cfg formatter.Config) error {
 			for i, l := range ls {
 				lineStrs[i] = fmt.Sprintf("%d", l)
 			}
-			fmt.Printf("  - %s — lines %s\n", f, strings.Join(lineStrs, ", "))
+			fmt.Printf("  - %s — %s %s\n", f, formatter.Plural(len(ls), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
 		fmt.Println("────────────────────────────────────────────────")
 	}
