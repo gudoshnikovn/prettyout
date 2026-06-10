@@ -1,5 +1,5 @@
 .worktrees/
 .DS_STORE
-prettyout-*
+/prettyout-*
 coverage.out
 coverage.html
