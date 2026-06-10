@@ -50,6 +50,18 @@ Key helpers in `pkg/formatter`:
 - `ResolvePath(path, cfg)` — relative path from CWD; respects `basename_only` config
 - `SeverityColor(sev, colors)` — ANSI color for severity string
 - `ParseNDJSON(data)` — line-by-line JSON parser for tools like mypy, cargo-clippy
+- `Plural(n, singular, plural)` — returns singular or plural form; use for "line"/"lines", "file"/"files"
+- `Summary(issues, rules, files)` — standard summary line: `N issues · M rules · K files`
+- `SortOrder(order, counts, sortBy)` — sorts rule/key list by alpha or count; pass `cfg.Sort`
+- `FilterRuleOrder(order, onlyRules)` — filters rule list to `cfg.OnlyRules`; returns filtered slice
+- `MatchesFileFilter(path, onlyFiles)` — true if path matches any prefix in `cfg.OnlyFiles`
+
+Config fields plugins should respect (set by runtime flags and config file):
+- `cfg.GroupBy` — `"rule"` (default) or `"file"`
+- `cfg.Sort` — `""` / `"alpha"` / `"count"`; pass to `SortOrder`
+- `cfg.OnlyRules` — filter rules; apply via `FilterRuleOrder`
+- `cfg.OnlyFiles` — filter files; apply via `MatchesFileFilter`
+- `cfg.Colors` — gate all ANSI codes on this; use `SeverityColor(sev, cfg.Colors)`
 
 ### Step 3 — Test: pipe real JSON through the plugin
 
@@ -134,6 +146,7 @@ Things that have bitten us before — check these explicitly:
 | stylelint writes JSON to stderr, not stdout; paths are absolute | stylelint | Pipe with `2>&1 >/dev/null` so stderr reaches the plugin's stdin; also wrap all source paths with `ResolvePath(f.Source, cfg)` since stylelint emits absolute paths |
 | Empty stdout causes JSON parse crash | golangci-lint | golangci-lint exits with code 3 and produces no stdout on infrastructure errors (e.g. Go version mismatch); guard with `if len(strings.TrimSpace(string(data))) == 0` and treat as 0 issues |
 | `cp -r` without clearing dest causes stale test fixtures | test/run.sh, Docker | Run `rm -rf dest && cp -r src dest` when copying test fixtures into container |
+| Summary counts not updated after OnlyRules/OnlyFiles filtering | eslint, mypy, shellcheck | Count only the issues/rules/files that passed the filter; pass filtered counts to `formatter.Summary`, not raw totals |
 
 ---
 
