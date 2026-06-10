@@ -64,10 +64,22 @@ func format(data []byte, cfg formatter.Config) error {
 		return formatByFile(report, cfg)
 	}
 
-	// Collect all vulns grouped by severity
+	allowedRules := make(map[string]bool, len(cfg.OnlyRules))
+	for _, r := range cfg.OnlyRules {
+		allowedRules[r] = true
+	}
+
+	// Collect all vulns grouped by severity, respecting OnlyFiles and OnlyRules
 	bySeverity := map[string][]trivyVuln{}
 	for _, result := range report.Results {
+		target := formatter.ResolvePath(result.Target, cfg)
+		if !formatter.MatchesFileFilter(target, cfg.OnlyFiles) {
+			continue
+		}
 		for _, v := range result.Vulnerabilities {
+			if len(allowedRules) > 0 && !allowedRules[v.VulnerabilityID] {
+				continue
+			}
 			sev := v.Severity
 			if sev == "" {
 				sev = "UNKNOWN"
