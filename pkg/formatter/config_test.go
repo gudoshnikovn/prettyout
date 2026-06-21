@@ -105,3 +105,31 @@ func TestApplyEnvOverrides_noVars(t *testing.T) {
 		t.Error("no env vars should leave config unchanged")
 	}
 }
+
+func TestLoadConfig_readsSortAndFilters(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, ".config", "prettyout")
+	_ = os.MkdirAll(dir, 0755)
+	_ = os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(`
+settings:
+  ruff:
+    sort: count
+    only_rules:
+      - E501
+      - F401
+    only_files:
+      - src/
+`), 0644)
+
+	cfg := LoadConfig("ruff")
+	if cfg.Sort != "count" {
+		t.Errorf("want sort=count, got %q", cfg.Sort)
+	}
+	if len(cfg.OnlyRules) != 2 || cfg.OnlyRules[0] != "E501" || cfg.OnlyRules[1] != "F401" {
+		t.Errorf("unexpected OnlyRules: %v", cfg.OnlyRules)
+	}
+	if len(cfg.OnlyFiles) != 1 || cfg.OnlyFiles[0] != "src/" {
+		t.Errorf("unexpected OnlyFiles: %v", cfg.OnlyFiles)
+	}
+}
