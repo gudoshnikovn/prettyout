@@ -43,11 +43,11 @@ func SeverityColor(sev string, colors bool) string {
 		return ""
 	}
 	switch sev {
-	case "error", "ERROR", "fatal", "FATAL":
+	case "error", "ERROR", "fatal", "FATAL", "CRITICAL", "critical", "HIGH", "high":
 		return "\033[1;31m"
-	case "warning", "WARNING", "WARN", "warn":
+	case "warning", "WARNING", "WARN", "warn", "MEDIUM", "moderate", "MODERATE":
 		return "\033[1;33m"
-	case "information", "info", "INFO", "note", "NOTE", "style", "hint":
+	case "information", "info", "INFO", "note", "NOTE", "style", "hint", "LOW", "low":
 		return "\033[1;34m"
 	default:
 		return ""
@@ -108,12 +108,12 @@ func FormatLines(lines []int) string {
 //	anything else                   → strings.ToUpper(sev)
 func SeverityLabel(sev string) string {
 	switch sev {
-	case "error", "ERROR", "fatal", "FATAL":
+	case "error", "ERROR", "fatal", "FATAL", "CRITICAL", "critical", "HIGH", "high":
 		return "ERROR"
-	case "warning", "WARNING", "warn", "WARN":
+	case "warning", "WARNING", "warn", "WARN", "MEDIUM", "moderate", "MODERATE":
 		return "WARN"
 	case "information", "INFORMATION", "info", "INFO",
-		"note", "NOTE", "style", "hint", "HINT":
+		"note", "NOTE", "style", "hint", "HINT", "LOW", "low":
 		return "INFO"
 	default:
 		if sev == "" {
