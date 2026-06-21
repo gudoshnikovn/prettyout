@@ -167,3 +167,159 @@ func TestSeverityRank(t *testing.T) {
 		t.Error("MEDIUM should rank before LOW")
 	}
 }
+
+func TestSeverityRank_default(t *testing.T) {
+	// LOW is at index 3 in severityOrder
+	if got := severityRank("LOW"); got != 3 {
+		t.Errorf("severityRank(LOW) = %d, want 3", got)
+	}
+	// UNKNOWN is at index 4 in severityOrder
+	if got := severityRank("UNKNOWN"); got != 4 {
+		t.Errorf("severityRank(UNKNOWN) = %d, want 4", got)
+	}
+	// A totally unknown value returns len(severityOrder) = 5
+	if got := severityRank("NOTFOUND"); got != 5 {
+		t.Errorf("severityRank(NOTFOUND) = %d, want 5", got)
+	}
+}
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(trivyJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	cfg.GroupBy = "file"
+	out := captureOutput(func() {
+		if err := format([]byte(trivyJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("byFile withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_noFixAvailable(t *testing.T) {
+	// FixedVersion=="" triggers the "no fix available" branch in both byRule and byFile
+	cfg := noColors()
+	input := `{
+  "Results": [
+    {
+      "Target": "package.json",
+      "Vulnerabilities": [
+        {"VulnerabilityID":"CVE-2023-999","PkgName":"moment","InstalledVersion":"2.29.0","FixedVersion":"","Severity":"HIGH"}
+      ]
+    }
+  ]
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "no fix available") {
+		t.Errorf("no fix: want 'no fix available', got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_noFixAvailable(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	input := `{
+  "Results": [
+    {
+      "Target": "package.json",
+      "Vulnerabilities": [
+        {"VulnerabilityID":"CVE-2023-999","PkgName":"moment","InstalledVersion":"2.29.0","FixedVersion":"","Severity":"HIGH"}
+      ]
+    }
+  ]
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "no fix available") {
+		t.Errorf("byFile no fix: want 'no fix available', got:\n%s", out)
+	}
+}
+
+func TestFormat_onlyRules(t *testing.T) {
+	// Tests the OnlyRules filter (allowedRules map) in format
+	cfg := noColors()
+	cfg.OnlyRules = []string{"CVE-2023-001"}
+	out := captureOutput(func() {
+		if err := format([]byte(trivyJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if strings.Contains(out, "CVE-2023-002") {
+		t.Errorf("CVE-2023-002 should be filtered by OnlyRules, got:\n%s", out)
+	}
+	if !strings.Contains(out, "CVE-2023-001") {
+		t.Errorf("CVE-2023-001 should appear, got:\n%s", out)
+	}
+}
+
+func TestFormat_emptySeverity(t *testing.T) {
+	// Empty Severity → defaults to "UNKNOWN" branch
+	cfg := noColors()
+	input := `{
+  "Results": [
+    {
+      "Target": "pkg.json",
+      "Vulnerabilities": [
+        {"VulnerabilityID":"CVE-2023-888","PkgName":"pkg","InstalledVersion":"1.0","FixedVersion":"","Severity":""}
+      ]
+    }
+  ]
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "UNKNOWN") {
+		t.Errorf("empty severity: want 'UNKNOWN', got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_emptySeverityAndEmptyVulns(t *testing.T) {
+	// Covers: empty Severity→UNKNOWN in formatByFile, len(Vulns)==0 skip
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	input := `{
+  "Results": [
+    {
+      "Target": "empty.json",
+      "Vulnerabilities": []
+    },
+    {
+      "Target": "pkg.json",
+      "Vulnerabilities": [
+        {"VulnerabilityID":"CVE-2023-777","PkgName":"pkg","InstalledVersion":"1.0","FixedVersion":"","Severity":""}
+      ]
+    }
+  ]
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "UNKNOWN") {
+		t.Errorf("empty severity in byFile: want 'UNKNOWN', got:\n%s", out)
+	}
+}
