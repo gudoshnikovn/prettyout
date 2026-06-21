@@ -138,6 +138,10 @@ formatter.RunWithConfig("ruff", func(data []byte, cfg formatter.Config) error { 
 ```go
 type Config struct {
     GroupBy          string         // "rule" | "file", default "rule"
+    Sort             string         // "" | "alpha" | "count", default ""
+    OnlyRules        []string       // Optional slice of rules to show
+    OnlyFiles        []string       // Optional slice of file paths to show
+    Stats            bool           // If true, prints a compact summary table instead
     Colors           bool           // default true
     MaxMessageLength int            // 0 = unlimited
     Extra            map[string]any // tool-specific settings
@@ -155,7 +159,7 @@ Plugin resolution order:
 
 ### Plugins (`cmd/prettyout-ruff`, `cmd/prettyout-basedpyright`)
 
-Standalone binaries. Each reads the tool's JSON format, groups diagnostics by rule code, and prints them with file/line info. They use `filepath.Base()` on filenames — no hardcoded path stripping.
+Standalone binaries. Each reads the tool's JSON format, transforms it into a slice of `formatter.Issue`, and hands it over to `formatter.Render(issues, cfg)` which uniformly takes care of grouping, coloring, sorting, filtering, and printing out statistics.
 
 ---
 

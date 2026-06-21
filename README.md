@@ -189,9 +189,9 @@ import "github.com/gudoshnikovn/prettyout/pkg/formatter"
 
 func main() {
     formatter.RunWithConfig("mytool", func(data []byte, cfg formatter.Config) error {
-        // parse JSON from data, print grouped output
-        // cfg: Colors, GroupBy, Sort, OnlyRules, OnlyFiles, MaxMessageLength, Stats
-        return nil
+        // parse JSON from data into a slice of your structs
+        // map them to []formatter.Issue
+        // return formatter.Render(issues, cfg)
     })
 }
 ```

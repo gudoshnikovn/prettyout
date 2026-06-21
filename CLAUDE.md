@@ -44,24 +44,20 @@ Study the actual JSON. Document in the spec:
 
 ### Step 2 — Implement the plugin
 
-Write `cmd/prettyout-<tool>/main.go` using `formatter.RunWithConfig`. See existing plugins as reference.
+Write `cmd/prettyout-<tool>/main.go` using `formatter.RunWithConfig`. 
+
+You no longer need to manually group, filter, or sort data. Simply:
+1. Unmarshal your tool's output.
+2. Convert it into a `[]formatter.Issue` slice.
+3. Call `formatter.Render(issues, cfg)`.
 
 Key helpers in `pkg/formatter`:
 - `ResolvePath(path, cfg)` — relative path from CWD; respects `basename_only` config
-- `SeverityColor(sev, colors)` — ANSI color for severity string
 - `ParseNDJSON(data)` — line-by-line JSON parser for tools like mypy, cargo-clippy
-- `Plural(n, singular, plural)` — returns singular or plural form; use for "line"/"lines", "file"/"files"
-- `Summary(issues, rules, files)` — standard summary line: `N issues · M rules · K files`
-- `SortOrder(order, counts, sortBy)` — sorts rule/key list by alpha or count; pass `cfg.Sort`
-- `FilterRuleOrder(order, onlyRules)` — filters rule list to `cfg.OnlyRules`; returns filtered slice
-- `MatchesFileFilter(path, onlyFiles)` — true if path matches any prefix in `cfg.OnlyFiles`
+- `Truncate(message, maxLen)` — safely shorten messages
 
 Config fields plugins should respect (set by runtime flags and config file):
-- `cfg.GroupBy` — `"rule"` (default) or `"file"`
-- `cfg.Sort` — `""` / `"alpha"` / `"count"`; pass to `SortOrder`
-- `cfg.OnlyRules` — filter rules; apply via `FilterRuleOrder`
-- `cfg.OnlyFiles` — filter files; apply via `MatchesFileFilter`
-- `cfg.Colors` — gate all ANSI codes on this; use `SeverityColor(sev, cfg.Colors)`
+All the heavy lifting (`cfg.GroupBy`, `cfg.Sort`, `cfg.OnlyRules`, `cfg.OnlyFiles`, `cfg.Colors`, `cfg.Stats`) is automatically handled inside `formatter.Render()`.
 
 ### Step 3 — Test: pipe real JSON through the plugin
 
@@ -83,35 +79,16 @@ go build -o /tmp/prettyout-<tool> ./cmd/prettyout-<tool>/
 Check every item before committing:
 
 **Output correctness**
-- [ ] `group_by: rule` (default): rules sorted, files listed under each rule, lines collapsed per file (`lines 30, 52` not `line 30` + `line 52` separately)
-- [ ] `group_by: file`: files sorted, rules+lines listed under each file
-- [ ] Occurrence count in rule header: `B904 (8) — message`
-- [ ] Summary line at end: `N issues · M rules · K files`
-
-**Paths**
-- [ ] Paths show relative from CWD, not absolute and not just basename
-- [ ] Test from a directory different from the files' location to verify RelPath logic
-
-**Singular/plural**
-- [ ] `line 5` (singular) vs `lines 3, 7` (plural) — never `lines 5` for one line
-- [ ] `1 file` vs `2 files` in summary — never `1 files`
+- [ ] Ensure your `toIssues` function correctly populates `Rule`, `Message`, `File`, `Line`, and `Severity`.
+- [ ] If `Line` is missing or irrelevant, leave it as `0`. The generic render engine will handle it.
+- [ ] Map your tool's severity to standard strings (e.g., "error", "warning", "info", "CRITICAL", "HIGH").
+- [ ] Ensure you're passing absolute paths or tool paths through `formatter.ResolvePath(path, cfg)`.
 
 **Edge cases**
-- [ ] Clean run → `0 issues · 0 rules · 0 files` (or tool-appropriate "nothing found" message)
+- [ ] Clean run → `0 issues · 0 rules · 0 files`
 - [ ] Empty file → no crash, handled gracefully
 - [ ] Syntax error in file → shows error correctly, no crash
-- [ ] Multiple diagnostics at the same line → line shown once (deduplicated), not repeated
-- [ ] Empty stdin → error message to stderr, exit 1 (NDJSON tools: `0 issues` is acceptable)
 - [ ] Invalid JSON → error message to stderr, exit 1
-
-**Severity (for tools that report it)**
-- [ ] Severity prefix shown in group header: `[ERROR]`, `[WARN]`, `[INFO]`
-- [ ] Correct color: red=error, yellow=warning, blue=info
-- [ ] Mixed severities in one rule group → show highest severity
-
-**Colors**
-- [ ] Colors on by default (when stdout is TTY)
-- [ ] `colors: false` in config disables all ANSI codes
 
 ### Step 5 — Add registry entry
 
@@ -131,22 +108,17 @@ Things that have bitten us before — check these explicitly:
 
 | Bug | Where it appeared | Fix |
 |-----|-------------------|-----|
-| `lines 5` for single occurrence | cargo-clippy, semgrep | `if len == 1: "line N"` not `"lines N"` |
-| `1 files` in summary | Multiple plugins | `plural("file", n)` helper |
 | Multiline messages shown raw | basedpyright | Take `strings.Split(msg, "\n")[0]` |
-| Duplicate line numbers | basedpyright (parse errors) | Use `map[int]struct{}` not `[]int` |
+| Duplicate line numbers | basedpyright (parse errors) | Make sure parsing is correct, generic render handles deduplication by file+line |
 | Ugly `../../..` paths | /tmp symlink on macOS | Real usage is fine; test from project dir |
 | Plugins written from docs without testing | All new plugins | Always run Step 1-4 above |
-| Missing severity prefix in rule header | semgrep | Format header as `[ERROR] rule-name` using `SeverityColor`; severity comes from `result.extra.severity` |
+| Missing severity prefix | semgrep | Provide severity to `formatter.Issue{Severity: ...}`; engine will format it |
 | Paths shown raw instead of relative | semgrep | Always pass paths through `ResolvePath(path, cfg)`, not `result.path` directly |
-| ANSI codes leaking into non-color mode | bandit | Gate all color calls on `cfg.Colors`; use `SeverityColor(sev, cfg.Colors)` |
-| Duplicate issues per-rule (same file+line) | pylint | Deduplicate by `(file, line)` within each rule group before printing |
 | Wrong field for file path in imports | eslint | `result.filePath` is the top-level key, not a per-message field |
 | `location.path` treated as object `{file: string}`, actually plain string in biome 2.x | biome | biome 2.x changed `location.path` from `{file: string}` to a plain string — access `d.Location.Path` directly, not `.file` |
 | stylelint writes JSON to stderr, not stdout; paths are absolute | stylelint | Pipe with `2>&1 >/dev/null` so stderr reaches the plugin's stdin; also wrap all source paths with `ResolvePath(f.Source, cfg)` since stylelint emits absolute paths |
 | Empty stdout causes JSON parse crash | golangci-lint | golangci-lint exits with code 3 and produces no stdout on infrastructure errors (e.g. Go version mismatch); guard with `if len(strings.TrimSpace(string(data))) == 0` and treat as 0 issues |
 | `cp -r` without clearing dest causes stale test fixtures | test/run.sh, Docker | Run `rm -rf dest && cp -r src dest` when copying test fixtures into container |
-| Summary counts not updated after OnlyRules/OnlyFiles filtering | eslint, mypy, shellcheck | Count only the issues/rules/files that passed the filter; pass filtered counts to `formatter.Summary`, not raw totals |
 
 ---
 
