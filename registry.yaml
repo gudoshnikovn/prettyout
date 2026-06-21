@@ -2,9 +2,74 @@ plugins:
   - name: prettyout-ruff
     tool: ruff
     description: Pretty output for Ruff linter
-    repo: github.com/gudoshnikov_na/prettyout/cmd/prettyout-ruff
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-ruff
+
+  - name: prettyout-mypy
+    tool: mypy
+    description: Pretty output for mypy type checker
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-mypy
 
   - name: prettyout-basedpyright
     tool: basedpyright
     description: Pretty output for BasedPyright type checker
-    repo: github.com/gudoshnikov_na/prettyout/cmd/prettyout-basedpyright
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-basedpyright
+
+  - name: prettyout-bandit
+    tool: bandit
+    description: Pretty output for Bandit security linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-bandit
+
+  - name: prettyout-pylint
+    tool: pylint
+    description: Pretty output for Pylint linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-pylint
+
+  - name: prettyout-eslint
+    tool: eslint
+    description: Pretty output for ESLint linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-eslint
+
+  - name: prettyout-biome
+    tool: biome
+    description: Pretty output for Biome linter and formatter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-biome
+
+  - name: prettyout-stylelint
+    tool: stylelint
+    description: Pretty output for Stylelint CSS linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-stylelint
+
+  - name: prettyout-npm-audit
+    tool: npm-audit
+    description: Pretty output for npm audit
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-npm-audit
+
+  - name: prettyout-shellcheck
+    tool: shellcheck
+    description: Pretty output for ShellCheck shell linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-shellcheck
+
+  - name: prettyout-hadolint
+    tool: hadolint
+    description: Pretty output for Hadolint Dockerfile linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-hadolint
+
+  - name: prettyout-golangci
+    tool: golangci-lint
+    description: Pretty output for golangci-lint Go meta-linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-golangci
+
+  - name: prettyout-cargo-clippy
+    tool: cargo clippy
+    description: Pretty output for Cargo Clippy Rust linter
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-cargo-clippy
+
+  - name: prettyout-trivy
+    tool: trivy
+    description: Pretty output for Trivy security scanner
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-trivy
+
+  - name: prettyout-semgrep
+    tool: semgrep
+    description: Pretty output for Semgrep code analysis
+    repo: github.com/gudoshnikovn/prettyout/cmd/prettyout-semgrep
