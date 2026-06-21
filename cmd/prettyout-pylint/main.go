@@ -44,17 +44,6 @@ func main() {
 	formatter.RunWithConfig("pylint", format)
 }
 
-func severityLabel(t string) string {
-	switch t {
-	case "error", "fatal":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
-}
-
 func format(data []byte, cfg formatter.Config) error {
 	var wrapper pylintJSON2
 	if err := json.Unmarshal(data, &wrapper); err != nil {
@@ -117,7 +106,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 		}
 		r := rules[key]
 		if r.message == "" {
-			r.message = truncate(m.Message, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(m.Message, cfg.MaxMessageLength)
 			r.severity = pylintSeverity(m.Type)
 			r.display = ruleDisplay(m)
 		}
@@ -198,7 +187,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(msgType)
+		label := formatter.SeverityLabel(msgType)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, r.display, count, r.message)
 		} else {
@@ -232,7 +221,7 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 			}
 			fmt.Printf("  - %s — %s %s\n", f, label, strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -272,7 +261,7 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 			continue
 		}
 		fileSeen[fp][rlk] = struct{}{}
-		fileMap[fp] = append(fileMap[fp], lineEntry{rule: key, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
+		fileMap[fp] = append(fileMap[fp], lineEntry{rule: key, line: m.Line, message: formatter.Truncate(m.Message, cfg.MaxMessageLength)})
 	}
 
 	filteredOrder := fileOrder[:0:0]
@@ -322,7 +311,7 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -330,9 +319,3 @@ func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

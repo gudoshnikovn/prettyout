@@ -48,31 +48,6 @@ func format(data []byte, cfg formatter.Config) error {
 	return formatByRule(issues, cfg)
 }
 
-func hadolintColor(level string, colors bool) string {
-	if !colors {
-		return ""
-	}
-	switch level {
-	case "error":
-		return "\033[1;31m"
-	case "warning":
-		return "\033[1;33m"
-	default:
-		return "\033[1;34m"
-	}
-}
-
-func severityLabel(level string) string {
-	switch level {
-	case "error":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
-}
-
 func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 	rules := map[string]*ruleEntry{}
 	ruleOrder := []string{}
@@ -89,7 +64,7 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(iss.Message, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(iss.Message, cfg.MaxMessageLength)
 			r.severity = iss.Level
 		}
 		r.fileLines[file] = append(r.fileLines[file], iss.Line)
@@ -146,12 +121,12 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 		for _, lines := range r.fileLines {
 			count += len(lines)
 		}
-		col := hadolintColor(r.severity, cfg.Colors)
+		col := formatter.SeverityColor(r.severity, cfg.Colors)
 		reset := ""
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, count, r.message)
 		} else {
@@ -178,7 +153,7 @@ func formatByRule(issues []hadolintIssue, cfg formatter.Config) error {
 			lineWord := formatter.Plural(len(ls), "line", "lines")
 			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -205,7 +180,7 @@ func formatByFile(issues []hadolintIssue, cfg formatter.Config) error {
 		if _, ok := fileMap[fp]; !ok {
 			fileOrder = append(fileOrder, fp)
 		}
-		fileMap[fp] = append(fileMap[fp], lineEntry{rule: rule, line: iss.Line, message: truncate(iss.Message, cfg.MaxMessageLength)})
+		fileMap[fp] = append(fileMap[fp], lineEntry{rule: rule, line: iss.Line, message: formatter.Truncate(iss.Message, cfg.MaxMessageLength)})
 	}
 
 	filtered := fileOrder[:0:0]
@@ -250,7 +225,7 @@ func formatByFile(issues []hadolintIssue, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -258,9 +233,3 @@ func formatByFile(issues []hadolintIssue, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

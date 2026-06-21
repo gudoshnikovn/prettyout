@@ -57,22 +57,6 @@ func format(data []byte, cfg formatter.Config) error {
 	return formatByRule(report.Results, cfg)
 }
 
-func severityLabel(sev string) string {
-	switch strings.ToUpper(sev) {
-	case "ERROR", "FATAL":
-		return "ERROR"
-	case "WARNING", "WARN":
-		return "WARN"
-	case "INFO", "INFORMATION":
-		return "INFO"
-	default:
-		if sev == "" {
-			return "INFO"
-		}
-		return strings.ToUpper(sev)
-	}
-}
-
 func shortCheckID(checkID string) string {
 	parts := strings.Split(checkID, ".")
 	if len(parts) > 0 {
@@ -96,7 +80,7 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 		}
 		re := rules[rule]
 		if re.message == "" {
-			re.message = truncate(r.Extra.Message, cfg.MaxMessageLength)
+			re.message = formatter.Truncate(r.Extra.Message, cfg.MaxMessageLength)
 			re.severity = r.Extra.Severity
 		}
 		rp := formatter.ResolvePath(r.Path, cfg)
@@ -166,7 +150,7 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 			reset = "\033[0m"
 		}
 		display := shortCheckID(rule)
-		sevLabel := severityLabel(re.severity)
+		sevLabel := formatter.SeverityLabel(re.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, sevLabel, reset, display, count, re.message)
 		} else {
@@ -196,7 +180,7 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 			}
 			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -223,7 +207,7 @@ func formatByFile(results []semgrepResult, cfg formatter.Config) error {
 		if _, ok := fileMap[rp]; !ok {
 			fileOrder = append(fileOrder, rp)
 		}
-		fileMap[rp] = append(fileMap[rp], lineEntry{rule: shortCheckID(rule), line: r.Start.Line, message: truncate(r.Extra.Message, cfg.MaxMessageLength)})
+		fileMap[rp] = append(fileMap[rp], lineEntry{rule: shortCheckID(rule), line: r.Start.Line, message: formatter.Truncate(r.Extra.Message, cfg.MaxMessageLength)})
 	}
 
 	filtered := fileOrder[:0:0]
@@ -268,7 +252,7 @@ func formatByFile(results []semgrepResult, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -276,9 +260,3 @@ func formatByFile(results []semgrepResult, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

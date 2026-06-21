@@ -154,7 +154,7 @@ func format(data []byte, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  range: %s  [%s]\n", v.Name, rangeStr, fix)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Printf("%d vulnerabilities\n", total)

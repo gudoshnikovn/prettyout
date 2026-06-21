@@ -37,17 +37,6 @@ type issueItem struct {
 	message  string
 }
 
-func severityLabel(sev string) string {
-	switch sev {
-	case "error":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
-}
-
 func main() {
 	formatter.RunWithConfig("stylelint", format)
 }
@@ -79,7 +68,7 @@ func format(data []byte, cfg formatter.Config) error {
 				rule:     rule,
 				severity: w.Severity,
 				line:     w.Line,
-				message:  truncate(w.Text, cfg.MaxMessageLength),
+				message:  formatter.Truncate(w.Text, cfg.MaxMessageLength),
 			})
 		}
 	}
@@ -176,7 +165,7 @@ func formatByRule(issues []issueItem, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, count, r.message)
 		} else {
@@ -206,7 +195,7 @@ func formatByRule(issues []issueItem, cfg formatter.Config) error {
 				fmt.Printf("  - %s — %s %s\n", f, formatter.Plural(len(ls), "line", "lines"), strings.Join(lineStrs, ", "))
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -277,7 +266,7 @@ func formatByFile(issues []issueItem, cfg formatter.Config) error {
 				fmt.Printf("  %s%s\n", e.rule, msg)
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -285,9 +274,3 @@ func formatByFile(issues []issueItem, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

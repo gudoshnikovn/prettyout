@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
@@ -29,17 +28,6 @@ type ruleEntry struct {
 	message     string
 	files       map[string]struct{}
 	occurrences int
-}
-
-func severityLabel(sev string) string {
-	switch strings.ToLower(sev) {
-	case "error", "fatal":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
 }
 
 func main() {
@@ -78,7 +66,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(d.Message, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(d.Message, cfg.MaxMessageLength)
 			r.severity = d.Severity
 		}
 		r.occurrences++
@@ -137,7 +125,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, r.occurrences, r.message)
 		} else {
@@ -158,7 +146,7 @@ func formatByRule(diags []biomeDiagnostic, cfg formatter.Config) error {
 				fmt.Printf("  - %s\n", f)
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -189,7 +177,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 		if _, ok := fileMap[file]; !ok {
 			fileOrder = append(fileOrder, file)
 		}
-		fileMap[file] = append(fileMap[file], entry{rule: rule, message: truncate(d.Message, cfg.MaxMessageLength)})
+		fileMap[file] = append(fileMap[file], entry{rule: rule, message: formatter.Truncate(d.Message, cfg.MaxMessageLength)})
 	}
 
 	filtered := fileOrder[:0:0]
@@ -233,7 +221,7 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s%s\n", e.rule, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -241,10 +229,4 @@ func formatByFile(diags []biomeDiagnostic, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}
 

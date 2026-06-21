@@ -34,8 +34,6 @@ func main() {
 	formatter.RunWithConfig("basedpyright", format)
 }
 
-const divider = "────────────────────────────────────────────────"
-
 // severityRank returns a numeric rank for comparing severities (higher = more severe).
 func severityRank(sev string) int {
 	switch sev {
@@ -50,26 +48,13 @@ func severityRank(sev string) int {
 	}
 }
 
-// severityLabel returns the bracket label for a severity string.
-func severityLabel(sev string) string {
-	switch sev {
-	case "error", "ERROR", "fatal", "FATAL":
-		return "ERROR"
-	case "warning", "WARNING", "warn", "WARN":
-		return "WARN"
-	case "information", "info", "INFO":
-		return "INFO"
-	default:
-		upper := ""
-		for _, c := range sev {
-			if c >= 'a' && c <= 'z' {
-				upper += string(c - 32)
-			} else {
-				upper += string(c)
-			}
-		}
-		return upper
+// firstLine returns s up to the first newline, stripping multiline messages
+// that basedpyright sometimes emits.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
 	}
+	return s
 }
 
 func format(data []byte, cfg formatter.Config) error {
@@ -109,7 +94,7 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 		}
 		rg := rules[code]
 		if rg.message == "" {
-			rg.message = truncate(d.Message, cfg.MaxMessageLength)
+			rg.message = formatter.Truncate(firstLine(d.Message), cfg.MaxMessageLength)
 		}
 		if severityRank(d.Severity) > severityRank(rg.maxSeverity) {
 			rg.maxSeverity = d.Severity
@@ -166,7 +151,7 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 			count += len(lines)
 		}
 
-		sevLabel := severityLabel(rg.maxSeverity)
+		sevLabel := formatter.SeverityLabel(rg.maxSeverity)
 		sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 		if cfg.Colors {
 			color := formatter.SeverityColor(rg.maxSeverity, true)
@@ -194,9 +179,9 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 				lines = append(lines, l)
 			}
 			sort.Ints(lines)
-			fmt.Printf("  - %s — %s\n", path, formatLines(lines))
+			fmt.Printf("  - %s — %s\n", path, formatter.FormatLines(lines))
 		}
-		fmt.Println(divider)
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(len(diags), len(ruleOrder), totalFiles))
@@ -234,7 +219,7 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 		files[path].issues = append(files[path].issues, issueEntry{
 			code:     code,
 			severity: d.Severity,
-			message:  truncate(d.Message, cfg.MaxMessageLength),
+			message:  formatter.Truncate(firstLine(d.Message), cfg.MaxMessageLength),
 			line:     line,
 		})
 	}
@@ -288,7 +273,7 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 
 		lastCode := ""
 		for _, e := range filteredIssues {
-			sevLabel := severityLabel(e.severity)
+			sevLabel := formatter.SeverityLabel(e.severity)
 			sevPrefix := fmt.Sprintf("[%s] ", sevLabel)
 			if cfg.Colors {
 				color := formatter.SeverityColor(e.severity, true)
@@ -310,7 +295,7 @@ func formatByFile(diags []diagnostic, cfg formatter.Config) error {
 				fmt.Printf("  %s%s  line %d%s\n", sevPrefix, e.code, e.line, msg)
 			}
 		}
-		fmt.Println(divider)
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(len(diags), len(ruleSeen), len(fileOrder)))
@@ -325,23 +310,3 @@ func countDistinctFiles(diags []diagnostic, cfg formatter.Config) int {
 	return len(seen)
 }
 
-func formatLines(lines []int) string {
-	if len(lines) == 1 {
-		return fmt.Sprintf("line %d", lines[0])
-	}
-	parts := make([]string, len(lines))
-	for i, l := range lines {
-		parts[i] = fmt.Sprintf("%d", l)
-	}
-	return "lines " + strings.Join(parts, ", ")
-}
-
-func truncate(s string, max int) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-	}
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

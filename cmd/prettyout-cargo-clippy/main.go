@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
@@ -35,17 +34,6 @@ type ruleEntry struct {
 	severity string
 	message  string
 	fileLines map[string][]int
-}
-
-func severityLabel(level string) string {
-	switch level {
-	case "error":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
 }
 
 func main() {
@@ -119,7 +107,7 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(cl.Message.Message, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(cl.Message.Message, cfg.MaxMessageLength)
 			r.severity = cl.Message.Level
 		}
 		if line > 0 {
@@ -197,7 +185,7 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, count, r.message)
 		} else {
@@ -220,10 +208,10 @@ func formatByRule(items []clippyLine, cfg formatter.Config) error {
 			if len(ls) == 0 {
 				fmt.Printf("  - %s\n", f)
 			} else {
-				fmt.Printf("  - %s — %s\n", f, formatLines(ls))
+				fmt.Printf("  - %s — %s\n", f, formatter.FormatLines(ls))
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -253,7 +241,7 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 		if _, ok := fileMap[file]; !ok {
 			fileOrder = append(fileOrder, file)
 		}
-		fileMap[file] = append(fileMap[file], lineEntry{rule: rule, line: line, message: truncate(cl.Message.Message, cfg.MaxMessageLength)})
+		fileMap[file] = append(fileMap[file], lineEntry{rule: rule, line: line, message: formatter.Truncate(cl.Message.Message, cfg.MaxMessageLength)})
 	}
 
 	filtered := fileOrder[:0:0]
@@ -302,7 +290,7 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 				fmt.Printf("  %s%s\n", e.rule, msg)
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -310,20 +298,3 @@ func formatByFile(items []clippyLine, cfg formatter.Config) error {
 	return nil
 }
 
-func formatLines(ls []int) string {
-	if len(ls) == 1 {
-		return fmt.Sprintf("line %d", ls[0])
-	}
-	parts := make([]string, len(ls))
-	for i, l := range ls {
-		parts[i] = fmt.Sprintf("%d", l)
-	}
-	return "lines " + strings.Join(parts, ", ")
-}
-
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

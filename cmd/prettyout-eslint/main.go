@@ -27,15 +27,6 @@ type ruleEntry struct {
 	fileLines map[string][]int
 }
 
-func severityLabel(sev string) string {
-	switch sev {
-	case "error":
-		return "ERROR"
-	default:
-		return "WARN"
-	}
-}
-
 func main() {
 	formatter.RunWithConfig("eslint", format)
 }
@@ -89,7 +80,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 			}
 			r := rules[rid]
 			if r.message == "" {
-				r.message = truncate(m.Message, cfg.MaxMessageLength)
+				r.message = formatter.Truncate(m.Message, cfg.MaxMessageLength)
 				r.severity = severityStr(m.Severity)
 			}
 			r.fileLines[fp] = append(r.fileLines[fp], m.Line)
@@ -143,7 +134,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", color, label, reset, rid, count, r.message)
 		} else {
@@ -169,7 +160,7 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 			}
 			fmt.Printf("  - %s — %s %s\n", fp, formatter.Plural(len(lines), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), len(totalFiles)))
@@ -211,7 +202,7 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 				}
 			}
 			allRules[rid] = struct{}{}
-			entries = append(entries, lineEntry{rule: rid, line: m.Line, message: truncate(m.Message, cfg.MaxMessageLength)})
+			entries = append(entries, lineEntry{rule: rid, line: m.Line, message: formatter.Truncate(m.Message, cfg.MaxMessageLength)})
 			totalIssues++
 		}
 		if len(entries) == 0 {
@@ -228,7 +219,7 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		fileCount++
 	}
 
@@ -236,9 +227,3 @@ func formatByFile(files []eslintFile, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

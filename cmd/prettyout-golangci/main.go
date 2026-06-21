@@ -72,7 +72,7 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(iss.Text, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(iss.Text, cfg.MaxMessageLength)
 		}
 		r.fileLines[file] = append(r.fileLines[file], iss.Pos.Line)
 	}
@@ -159,7 +159,7 @@ func formatByRule(issues []golangciIssue, cfg formatter.Config) error {
 			}
 			fmt.Printf("  - %s — %s %s\n", f, formatter.Plural(len(lines), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -192,7 +192,7 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 		fileMap[file] = append(fileMap[file], lineEntry{
 			rule:    rule,
 			line:    iss.Pos.Line,
-			message: truncate(iss.Text, cfg.MaxMessageLength),
+			message: formatter.Truncate(iss.Text, cfg.MaxMessageLength),
 		})
 	}
 
@@ -247,7 +247,7 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -255,9 +255,3 @@ func formatByFile(issues []golangciIssue, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

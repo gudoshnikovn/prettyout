@@ -159,7 +159,7 @@ func format(data []byte, cfg formatter.Config) error {
 				fmt.Printf("  %s — %s %s → no fix available\n", v.VulnerabilityID, v.PkgName, v.InstalledVersion)
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Printf("%d vulnerabilities · %d severity levels\n", totalVulns, len(sevs))
@@ -210,7 +210,7 @@ func formatByFile(report trivyReport, cfg formatter.Config) error {
 				fmt.Printf("  %s%-8s%s %s — %s %s → no fix available\n", col, sev, reset, v.VulnerabilityID, v.PkgName, v.InstalledVersion)
 			}
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	if totalVulns == 0 {

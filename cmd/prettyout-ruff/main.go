@@ -30,8 +30,6 @@ func main() {
 	formatter.RunWithConfig("ruff", format)
 }
 
-const divider = "────────────────────────────────────────────────"
-
 func format(data []byte, cfg formatter.Config) error {
 	var issues []issue
 	if err := json.Unmarshal(data, &issues); err != nil {
@@ -73,7 +71,7 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 		}
 		rg := rules[code]
 		if rg.message == "" {
-			rg.message = truncate(iss.Message, cfg.MaxMessageLength)
+			rg.message = formatter.Truncate(iss.Message, cfg.MaxMessageLength)
 		}
 		if _, ok := rg.files[path]; !ok {
 			rg.files[path] = &fileLines{file: path}
@@ -146,10 +144,10 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 			}
 			fl := rg.files[path]
 			sort.Ints(fl.lines)
-			lineLabel := formatLines(fl.lines)
+			lineLabel := formatter.FormatLines(fl.lines)
 			fmt.Printf("  - %s — %s\n", fl.file, lineLabel)
 		}
-		fmt.Println(divider)
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), totalFiles))
@@ -187,7 +185,7 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 		files[path].issues = append(files[path].issues, issueEntry{
 			path:    path,
 			code:    code,
-			message: truncate(iss.Message, cfg.MaxMessageLength),
+			message: formatter.Truncate(iss.Message, cfg.MaxMessageLength),
 			line:    iss.Location.Row,
 		})
 	}
@@ -255,7 +253,7 @@ func formatByFile(issues []issue, cfg formatter.Config) error {
 				fmt.Printf("  %s  line %d%s\n", e.code, e.line, msg)
 			}
 		}
-		fmt.Println(divider)
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(len(issues), len(ruleSeen), len(fileOrder)))
@@ -292,20 +290,3 @@ func countDistinctFiles(issues []issue, cfg formatter.Config) int {
 	return len(seen)
 }
 
-func formatLines(lines []int) string {
-	if len(lines) == 1 {
-		return fmt.Sprintf("line %d", lines[0])
-	}
-	parts := make([]string, len(lines))
-	for i, l := range lines {
-		parts[i] = fmt.Sprintf("%d", l)
-	}
-	return "lines " + strings.Join(parts, ", ")
-}
-
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

@@ -23,17 +23,6 @@ type ruleEntry struct {
 	fileLines map[string][]int
 }
 
-func severityLabel(level string) string {
-	switch level {
-	case "error":
-		return "ERROR"
-	case "warning":
-		return "WARN"
-	default:
-		return "INFO"
-	}
-}
-
 func main() {
 	formatter.RunWithConfig("shellcheck", format)
 }
@@ -80,7 +69,7 @@ func formatByRule(issues []shellcheckIssue, cfg formatter.Config) error {
 		}
 		r := rules[rule]
 		if r.message == "" {
-			r.message = truncate(iss.Message, cfg.MaxMessageLength)
+			r.message = formatter.Truncate(iss.Message, cfg.MaxMessageLength)
 			r.severity = iss.Level
 		}
 		r.fileLines[iss.File] = append(r.fileLines[iss.File], iss.Line)
@@ -138,7 +127,7 @@ func formatByRule(issues []shellcheckIssue, cfg formatter.Config) error {
 		if cfg.Colors {
 			reset = "\033[0m"
 		}
-		label := severityLabel(r.severity)
+		label := formatter.SeverityLabel(r.severity)
 		if cfg.Colors {
 			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, rule, count, r.message)
 		} else {
@@ -164,7 +153,7 @@ func formatByRule(issues []shellcheckIssue, cfg formatter.Config) error {
 			}
 			fmt.Printf("  - %s — %s %s\n", f, formatter.Plural(len(ls), "line", "lines"), strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(len(issues), len(rules), len(totalFiles)))
@@ -187,7 +176,7 @@ func formatByFile(issues []shellcheckIssue, cfg formatter.Config) error {
 		if _, ok := fileMap[iss.File]; !ok {
 			fileOrder = append(fileOrder, iss.File)
 		}
-		fileMap[iss.File] = append(fileMap[iss.File], lineEntry{rule: rule, line: iss.Line, message: truncate(iss.Message, cfg.MaxMessageLength)})
+		fileMap[iss.File] = append(fileMap[iss.File], lineEntry{rule: rule, line: iss.Line, message: formatter.Truncate(iss.Message, cfg.MaxMessageLength)})
 	}
 
 	filteredFileOrder := fileOrder[:0:0]
@@ -231,16 +220,10 @@ func formatByFile(issues []shellcheckIssue, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(len(issues), len(allRules), len(fileOrder)))
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

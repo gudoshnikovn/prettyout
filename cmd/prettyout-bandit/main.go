@@ -86,7 +86,7 @@ func formatByRule(results []banditResult, cfg formatter.Config) error {
 		}
 		re := rules[rule]
 		if re.message == "" {
-			re.message = truncate(r.IssueText, cfg.MaxMessageLength)
+			re.message = formatter.Truncate(r.IssueText, cfg.MaxMessageLength)
 			re.severity = r.IssueSeverity
 			re.confidence = r.IssueConfidence
 		}
@@ -172,7 +172,7 @@ func formatByRule(results []banditResult, cfg formatter.Config) error {
 			lineWord := formatter.Plural(len(ls), "line", "lines")
 			fmt.Printf("  - %s — %s %s\n", f, lineWord, strings.Join(lineStrs, ", "))
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 	}
 
 	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
@@ -199,7 +199,7 @@ func formatByFile(results []banditResult, cfg formatter.Config) error {
 		if _, ok := fileMap[file]; !ok {
 			fileOrder = append(fileOrder, file)
 		}
-		fileMap[file] = append(fileMap[file], lineEntry{rule: rule, line: r.LineNumber, message: truncate(r.IssueText, cfg.MaxMessageLength)})
+		fileMap[file] = append(fileMap[file], lineEntry{rule: rule, line: r.LineNumber, message: formatter.Truncate(r.IssueText, cfg.MaxMessageLength)})
 	}
 
 	filtered := fileOrder[:0:0]
@@ -244,7 +244,7 @@ func formatByFile(results []banditResult, cfg formatter.Config) error {
 			}
 			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
 		}
-		fmt.Println("────────────────────────────────────────────────")
+		fmt.Println(formatter.Divider)
 		totalIssues += len(filteredEntries)
 	}
 
@@ -252,9 +252,3 @@ func formatByFile(results []banditResult, cfg formatter.Config) error {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}
