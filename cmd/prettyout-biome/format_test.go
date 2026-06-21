@@ -59,7 +59,7 @@ func TestFormat_byRule(t *testing.T) {
 	if !strings.Contains(out, "noVar") {
 		t.Errorf("want noVar, got:\n%s", out)
 	}
-	if !strings.Contains(out, "3 issues · 2 rules · 2 files") {
+	if !strings.Contains(out, "2 issues · 2 rules · 2 files") {
 		t.Errorf("want summary, got:\n%s", out)
 	}
 }

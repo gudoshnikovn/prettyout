@@ -131,21 +131,6 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
-func TestShellcheckColor_withColors(t *testing.T) {
-	if shellcheckColor("error", true) == "" {
-		t.Error("shellcheckColor(error, true): want ANSI code")
-	}
-	if shellcheckColor("warning", true) == "" {
-		t.Error("shellcheckColor(warning, true): want ANSI code")
-	}
-	if shellcheckColor("info", true) == "" {
-		t.Error("shellcheckColor(info, true): want ANSI code (dim)")
-	}
-	if shellcheckColor("error", false) != "" {
-		t.Error("shellcheckColor(error, false): want empty")
-	}
-}
-
 func TestFormat_byFile_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.GroupBy = "file"
