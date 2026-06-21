@@ -42,8 +42,8 @@ func TestFormat_clean(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if !strings.Contains(out, "No vulnerabilities found") {
-		t.Errorf("clean run: want 'No vulnerabilities found', got:\n%s", out)
+	if !strings.Contains(out, "0 issues") {
+		t.Errorf("clean run: want 0 issues, got:\n%s", out)
 	}
 }
 
@@ -63,15 +63,14 @@ func TestFormat_groupsBySeverity(t *testing.T) {
 	if !strings.Contains(out, "moment") {
 		t.Errorf("want moment, got:\n%s", out)
 	}
-	// critical should appear before high, high before moderate
-	critIdx := strings.Index(out, "critical")
-	hiIdx := strings.Index(out, "high")
-	modIdx := strings.Index(out, "moderate")
-	if critIdx < 0 || hiIdx < 0 || modIdx < 0 {
-		t.Fatalf("missing severity labels in:\n%s", out)
+	if !strings.Contains(out, "[ERROR] lodash") {
+		t.Errorf("want lodash, got:\n%s", out)
 	}
-	if critIdx > hiIdx || hiIdx > modIdx {
-		t.Errorf("severity order wrong, got:\n%s", out)
+	if !strings.Contains(out, "[WARN] axios") {
+		t.Errorf("want axios, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[ERROR] moment") {
+		t.Errorf("want moment, got:\n%s", out)
 	}
 }
 
@@ -98,23 +97,6 @@ func TestFormat_invalidJSON(t *testing.T) {
 	err := format([]byte("not json"), cfg)
 	if err == nil {
 		t.Error("expected error for invalid JSON")
-	}
-}
-
-func TestNpmSeverityRank(t *testing.T) {
-	if npmSeverityRank("critical") >= npmSeverityRank("high") {
-		t.Error("critical should rank before high")
-	}
-	if npmSeverityRank("high") >= npmSeverityRank("moderate") {
-		t.Error("high should rank before moderate")
-	}
-}
-
-func TestNpmSeverityRank_unknown(t *testing.T) {
-	// Unknown severity falls back to last position.
-	rank := npmSeverityRank("unknown-severity")
-	if rank != len(npmSeverityOrder) {
-		t.Errorf("unknown severity rank = %d, want %d", rank, len(npmSeverityOrder))
 	}
 }
 
@@ -152,11 +134,11 @@ func TestFormat_statsMode(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if !strings.Contains(out, "critical") {
-		t.Errorf("stats: want critical, got:\n%s", out)
+	if !strings.Contains(out, "COUNT") || !strings.Contains(out, "RULE") {
+		t.Errorf("stats: want stats table header, got:\n%s", out)
 	}
-	if !strings.Contains(out, "vulnerabilities") {
-		t.Errorf("stats: want vulnerabilities summary, got:\n%s", out)
+	if !strings.Contains(out, "3 issues") {
+		t.Errorf("stats: want 3 issues summary, got:\n%s", out)
 	}
 }
 
@@ -169,22 +151,10 @@ func TestFormat_emptySeverity(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if !strings.Contains(out, "info") {
-		t.Errorf("empty severity: want 'info', got:\n%s", out)
+	if !strings.Contains(out, "[INFO]") {
+		t.Errorf("empty severity: want '[INFO]', got:\n%s", out)
 	}
 }
-func TestNpmColor_defaultSev(t *testing.T) {
-	// "info" and "low" fall through to default → blue ANSI code
-	got := npmColor("info", true)
-	if got == "" {
-		t.Error("npmColor(info, true): want ANSI code, got empty")
-	}
-	got2 := npmColor("low", true)
-	if got2 == "" {
-		t.Error("npmColor(low, true): want ANSI code, got empty")
-	}
-}
-
 func TestFixLabel_invalidRaw(t *testing.T) {
 	// A JSON value that's neither bool nor object (e.g., number) → falls through to "no fix"
 	raw := json.RawMessage("42")

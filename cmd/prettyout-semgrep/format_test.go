@@ -106,7 +106,7 @@ func TestFormat_statsMode(t *testing.T) {
 func TestFormat_byFile_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.GroupBy = "file"
-	cfg.OnlyRules = []string{"dangerous-eval"}
+	cfg.OnlyRules = []string{"rules.python.dangerous-eval"}
 	out := captureOutput(func() {
 		if err := format([]byte(twoFileJSON), cfg); err != nil {
 			t.Error(err)
