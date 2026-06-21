@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-const ansiReset = "\033[0m"
+// Divider is the standard rule/file section separator used in all plugin output.
+const Divider = "────────────────────────────────────────────────"
 
 // ResolvePath returns a display-friendly path:
 // - if basename_only extra config is true: returns filepath.Base(path)
@@ -74,6 +75,52 @@ func ParseNDJSON(data []byte) ([]json.RawMessage, error) {
 		}
 	}
 	return results, nil
+}
+
+// Truncate shortens s to at most max bytes, appending "..." if truncated.
+// If max is 0 or negative, s is returned unchanged.
+func Truncate(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+// FormatLines formats a sorted list of line numbers as "line N" (singular) or
+// "lines N, M, K" (plural). The caller is responsible for sorting lines.
+func FormatLines(lines []int) string {
+	if len(lines) == 1 {
+		return fmt.Sprintf("line %d", lines[0])
+	}
+	parts := make([]string, len(lines))
+	for i, l := range lines {
+		parts[i] = fmt.Sprintf("%d", l)
+	}
+	return "lines " + strings.Join(parts, ", ")
+}
+
+// SeverityLabel returns a short uppercase label for a severity string.
+// Handles the conventions used across the supported tools:
+//
+//	error / fatal / ERROR / FATAL   → "ERROR"
+//	warning / warn / WARNING / WARN → "WARN"
+//	info / note / style / hint / …  → "INFO"
+//	anything else                   → strings.ToUpper(sev)
+func SeverityLabel(sev string) string {
+	switch sev {
+	case "error", "ERROR", "fatal", "FATAL":
+		return "ERROR"
+	case "warning", "WARNING", "warn", "WARN":
+		return "WARN"
+	case "information", "INFORMATION", "info", "INFO",
+		"note", "NOTE", "style", "hint", "HINT":
+		return "INFO"
+	default:
+		if sev == "" {
+			return "INFO"
+		}
+		return strings.ToUpper(sev)
+	}
 }
 
 // Plural returns singular when n==1, plural otherwise.

@@ -41,6 +41,9 @@ type rawSettings struct {
 	GroupBy          string         `yaml:"group_by"`
 	Colors           *bool          `yaml:"colors"`
 	MaxMessageLength *int           `yaml:"max_message_length"`
+	Sort             string         `yaml:"sort"`
+	OnlyRules        []string       `yaml:"only_rules"`
+	OnlyFiles        []string       `yaml:"only_files"`
 	Stats            *bool          `yaml:"stats"`
 	Extra            map[string]any `yaml:"extra"`
 }
@@ -70,6 +73,15 @@ func applyFile(path, toolName string, cfg *Config) {
 	}
 	if s.MaxMessageLength != nil {
 		cfg.MaxMessageLength = *s.MaxMessageLength
+	}
+	if s.Sort != "" {
+		cfg.Sort = s.Sort
+	}
+	if len(s.OnlyRules) > 0 {
+		cfg.OnlyRules = s.OnlyRules
+	}
+	if len(s.OnlyFiles) > 0 {
+		cfg.OnlyFiles = s.OnlyFiles
 	}
 	if s.Stats != nil {
 		cfg.Stats = *s.Stats
