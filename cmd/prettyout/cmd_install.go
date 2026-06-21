@@ -6,7 +6,6 @@ import (
 
 	"github.com/gudoshnikovn/prettyout/internal/config"
 	"github.com/gudoshnikovn/prettyout/internal/install"
-	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func runInstall(args []string) {
@@ -15,7 +14,7 @@ func runInstall(args []string) {
 		os.Exit(1)
 	}
 	name := args[0]
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 	tc, ok := reg.Tools[name]
@@ -36,7 +35,7 @@ func runInstall(args []string) {
 }
 
 func runUpdate(args []string) {
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 

@@ -99,16 +99,21 @@ func runSetup() {
 	fmt.Printf("Added to %s\nRun: source %s\n", rcFile, rcFile)
 }
 
+func mustLoadBuiltin() *registry.Registry {
+	reg, err := registry.LoadBuiltin()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prettyout: internal error loading registry: %v\n", err)
+		os.Exit(1)
+	}
+	return reg
+}
+
 func runHook(args []string) {
 	shell := "zsh"
 	if len(args) > 0 {
 		shell = args[0]
 	}
-	reg, err := registry.LoadBuiltin()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "prettyout: failed to load registry: %v\n", err)
-		os.Exit(1)
-	}
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 	fmt.Print(hook.Generate(shell, reg, cfg))

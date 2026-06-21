@@ -17,7 +17,7 @@ func runEnable(args []string) {
 		os.Exit(1)
 	}
 
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 

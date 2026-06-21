@@ -6,11 +6,10 @@ import (
 
 	"github.com/gudoshnikovn/prettyout/internal/config"
 	"github.com/gudoshnikovn/prettyout/internal/doctor"
-	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func runDoctor() {
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 

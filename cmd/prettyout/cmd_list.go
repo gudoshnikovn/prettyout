@@ -6,12 +6,11 @@ import (
 
 	"github.com/gudoshnikovn/prettyout/internal/config"
 	"github.com/gudoshnikovn/prettyout/internal/install"
-	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func runList(args []string) {
 	available := len(args) > 0 && args[0] == "--available"
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 

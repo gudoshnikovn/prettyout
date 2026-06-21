@@ -6,7 +6,6 @@ import (
 
 	"github.com/gudoshnikovn/prettyout/internal/completion"
 	"github.com/gudoshnikovn/prettyout/internal/config"
-	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func runCompletion(args []string) {
@@ -14,7 +13,7 @@ func runCompletion(args []string) {
 		fmt.Fprintln(os.Stderr, "prettyout completion: shell name required (zsh|bash)")
 		os.Exit(1)
 	}
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	script, err := completion.Generate(args[0], reg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "prettyout: %v\n", err)
@@ -28,7 +27,7 @@ func runCompletions(args []string) {
 	if len(args) == 0 || args[0] != "tools" {
 		os.Exit(1)
 	}
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 	for _, name := range reg.SortedToolNames() {

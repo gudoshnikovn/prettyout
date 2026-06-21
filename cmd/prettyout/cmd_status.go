@@ -7,13 +7,12 @@ import (
 
 	"github.com/gudoshnikovn/prettyout/internal/config"
 	"github.com/gudoshnikovn/prettyout/internal/install"
-	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 const version = "0.3.0"
 
 func runStatus() {
-	reg, _ := registry.LoadBuiltin()
+	reg := mustLoadBuiltin()
 	cfg := config.Load()
 	reg.Merge(cfg.CustomTools)
 

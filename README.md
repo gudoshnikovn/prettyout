@@ -158,17 +158,39 @@ settings:
     group_by: file
 ```
 
+## Environment variables
+
+All config options can be overridden per-run without touching config files:
+
+| Variable | Values | Description |
+|----------|--------|-------------|
+| `PO_GROUP_BY` | `rule` / `file` | Override `group_by` for this run |
+| `PO_SORT` | `alpha` / `count` | Override sort order for this run |
+| `PO_ONLY_RULES` | `E501,F401` | Comma-separated rule filter |
+| `PO_ONLY_FILES` | `src/,tests/` | Comma-separated path prefix filter |
+| `PO_STATS` | `1` | Print a compact count table instead of full output |
+
+```bash
+# Show only E501 violations, sorted by frequency
+PO_ONLY_RULES=E501 PO_SORT=count ruff check .
+
+# Compact stats table for the whole codebase
+PO_STATS=1 ruff check .
+```
+
 ## Writing a plugin
 
 A plugin is any executable named `prettyout-<toolname>` that reads JSON from stdin and writes formatted text to stdout.
+
+Copy [`cmd/prettyout-example/main.go`](cmd/prettyout-example/main.go) as your starting point — it's a fully working, well-commented template with both `group_by: rule` and `group_by: file` modes, filtering, sorting, stats mode, and all the edge cases handled.
 
 ```go
 import "github.com/gudoshnikovn/prettyout/pkg/formatter"
 
 func main() {
     formatter.RunWithConfig("mytool", func(data []byte, cfg formatter.Config) error {
-        // parse data, print pretty output
-        // cfg.Colors, cfg.GroupBy, cfg.OnlyRules, cfg.OnlyFiles are set from config
+        // parse JSON from data, print grouped output
+        // cfg: Colors, GroupBy, Sort, OnlyRules, OnlyFiles, MaxMessageLength, Stats
         return nil
     })
 }
@@ -184,7 +206,7 @@ custom_tools:
     intercept_subcommands: [lint]  # optional: only intercept these subcommands
 ```
 
-Or add it to `internal/registry/builtin.yaml` and open a PR.
+To add your tool to the built-in registry (available to all prettyout users), open a PR adding an entry to `internal/registry/builtin.yaml`.
 
 See [docs/architecture.md](docs/architecture.md) for a full description of how everything works.
 
