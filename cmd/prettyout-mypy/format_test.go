@@ -108,6 +108,19 @@ func TestFormat_onlyRules(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileNDJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "assignment") {
+		t.Errorf("stats: want assignment rule, got:\n%s", out)
+	}
+}
+
 func TestFormat_onlyFiles(t *testing.T) {
 	cfg := noColors()
 	cfg.OnlyFiles = []string{"bar.py"}

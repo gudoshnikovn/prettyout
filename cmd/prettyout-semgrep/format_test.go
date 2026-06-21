@@ -90,6 +90,19 @@ func TestFormat_invalidJSON(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "dangerous-eval") {
+		t.Errorf("stats: want dangerous-eval, got:\n%s", out)
+	}
+}
+
 func TestShortCheckID(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"rules.python.dangerous-eval", "dangerous-eval"},

@@ -118,6 +118,19 @@ func TestFormat_onlyRules(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "color-no-invalid-hex") {
+		t.Errorf("stats: want color-no-invalid-hex, got:\n%s", out)
+	}
+}
+
 func TestFormat_nonJSONInput(t *testing.T) {
 	cfg := noColors()
 	err := format([]byte("stylelint: command failed"), cfg)

@@ -107,6 +107,19 @@ func TestFormat_deduplicatesLines(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "reportMissingImports") {
+		t.Errorf("stats: want reportMissingImports, got:\n%s", out)
+	}
+}
+
 func TestFormat_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.OnlyRules = []string{"reportUndefinedVariable"}

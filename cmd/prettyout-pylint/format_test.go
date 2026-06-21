@@ -101,6 +101,19 @@ func TestFormat_onlyRules(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "line-too-long") {
+		t.Errorf("stats: want line-too-long, got:\n%s", out)
+	}
+}
+
 func TestFormat_deduplicatesLines(t *testing.T) {
 	cfg := noColors()
 	// Same file, same line, same rule twice → should appear once

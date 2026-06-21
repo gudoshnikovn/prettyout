@@ -88,3 +88,93 @@ func TestMerge_projectDoesNotClearGlobal(t *testing.T) {
 		t.Error("global plugin should survive empty project config")
 	}
 }
+
+func TestLoad_mergesGlobalAndProject(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Write global config
+	globalDir := filepath.Join(home, ".config", "prettyout")
+	os.MkdirAll(globalDir, 0755)
+	writeYAML(t, globalDir, "config.yaml", `
+enabled:
+  ruff: true
+ci_mode: always
+`)
+
+	// Write project config in a temp CWD
+	projectDir := t.TempDir()
+	writeYAML(t, projectDir, ".prettyout.yaml", `
+enabled:
+  mypy: true
+`)
+
+	// Change working directory for the duration of the test
+	origDir, _ := os.Getwd()
+	os.Chdir(projectDir)
+	defer os.Chdir(origDir)
+
+	cfg := Load()
+	if !cfg.Enabled["ruff"] {
+		t.Error("global ruff should be enabled")
+	}
+	if !cfg.Enabled["mypy"] {
+		t.Error("project mypy should be enabled")
+	}
+	if cfg.CIMode != "always" {
+		t.Errorf("global ci_mode should be preserved, got %q", cfg.CIMode)
+	}
+}
+
+func TestSave_writesFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	cfg := defaults()
+	cfg.Enabled["ruff"] = true
+	cfg.CIMode = "always"
+	Save(cfg)
+
+	path := filepath.Join(home, ".config", "prettyout", "config.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("config file not written: %v", err)
+	}
+	if string(data) == "" {
+		t.Error("config file is empty")
+	}
+
+	// Verify round-trip
+	loaded := loadFile(path)
+	if !loaded.Enabled["ruff"] {
+		t.Error("saved ruff enabled not preserved")
+	}
+	if loaded.CIMode != "always" {
+		t.Errorf("saved ci_mode not preserved, got %q", loaded.CIMode)
+	}
+}
+
+func TestGlobalConfigPath_containsPrettyout(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	p := GlobalConfigPath()
+	if !filepath.IsAbs(p) {
+		t.Errorf("path should be absolute, got %q", p)
+	}
+	if filepath.Base(p) != "config.yaml" {
+		t.Errorf("expected config.yaml, got %q", filepath.Base(p))
+	}
+}
+
+func TestMerge_ciModeAutoNotOverridden(t *testing.T) {
+	global := defaults()
+	global.CIMode = "always"
+
+	project := defaults() // CIMode = "auto" (default)
+
+	merged := mergeConfigs(global, project)
+	// project CIMode is "auto" which is the default, so global should win
+	if merged.CIMode != "always" {
+		t.Errorf("global ci_mode=always should win when project is default auto, got %q", merged.CIMode)
+	}
+}

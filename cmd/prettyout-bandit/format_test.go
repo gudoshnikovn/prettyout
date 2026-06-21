@@ -121,6 +121,19 @@ func TestFormat_invalidJSON(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "B101") {
+		t.Errorf("stats: want B101, got:\n%s", out)
+	}
+}
+
 func TestCleanFilename(t *testing.T) {
 	if got := cleanFilename("./foo.py"); got != "foo.py" {
 		t.Errorf("got %q, want %q", got, "foo.py")

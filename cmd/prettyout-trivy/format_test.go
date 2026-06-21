@@ -103,6 +103,22 @@ func TestFormat_onlyFiles(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(trivyJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "HIGH") {
+		t.Errorf("stats: want HIGH, got:\n%s", out)
+	}
+	if !strings.Contains(out, "vulnerabilit") {
+		t.Errorf("stats: want vulnerability summary, got:\n%s", out)
+	}
+}
+
 func TestFormat_invalidJSON(t *testing.T) {
 	cfg := noColors()
 	err := format([]byte("not json"), cfg)

@@ -118,6 +118,19 @@ func TestFormat_invalidJSON(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "SC2034") {
+		t.Errorf("stats: want SC2034, got:\n%s", out)
+	}
+}
+
 func TestScCode(t *testing.T) {
 	if got := scCode(2034); got != "SC2034" {
 		t.Errorf("got %q, want SC2034", got)

@@ -127,6 +127,64 @@ func TestFormat_invalidJSON(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "E501") {
+		t.Errorf("stats: want E501, got:\n%s", out)
+	}
+	if !strings.Contains(out, "3 issues") {
+		t.Errorf("stats: want summary, got:\n%s", out)
+	}
+}
+
+func TestFormat_fixHint_safeOnly(t *testing.T) {
+	cfg := noColors()
+	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":1},"end_location":{"row":1},"fix":{"applicability":"safe"}}]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "fixable with --fix") {
+		t.Errorf("want safe fix hint, got:\n%s", out)
+	}
+}
+
+func TestFormat_fixHint_unsafeOnly(t *testing.T) {
+	cfg := noColors()
+	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":1},"end_location":{"row":1},"fix":{"applicability":"unsafe"}}]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "--unsafe-fixes") {
+		t.Errorf("want unsafe fix hint, got:\n%s", out)
+	}
+}
+
+func TestFormat_fixHint_both(t *testing.T) {
+	cfg := noColors()
+	input := `[
+    {"code":"E501","message":"too long","filename":"a.py","location":{"row":1},"end_location":{"row":1},"fix":{"applicability":"safe"}},
+    {"code":"F401","message":"unused","filename":"a.py","location":{"row":2},"end_location":{"row":2},"fix":{"applicability":"unsafe"}}
+  ]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "--fix") || !strings.Contains(out, "--unsafe-fixes") {
+		t.Errorf("want both fix hints, got:\n%s", out)
+	}
+}
+
 func TestFormat_singleLineSingular(t *testing.T) {
 	cfg := noColors()
 	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":5},"end_location":{"row":5}}]`

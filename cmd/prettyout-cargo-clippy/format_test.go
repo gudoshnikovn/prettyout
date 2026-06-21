@@ -96,6 +96,19 @@ func TestFormat_skipsNoteAndHelp(t *testing.T) {
 	}
 }
 
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(clippyNDJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "unused_variables") {
+		t.Errorf("stats: want unused_variables, got:\n%s", out)
+	}
+}
+
 func TestFormat_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.OnlyRules = []string{"E0308"}
