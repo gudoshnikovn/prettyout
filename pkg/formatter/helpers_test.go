@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -254,5 +255,31 @@ func TestResolvePath_basenameOnly(t *testing.T) {
 	got := ResolvePath("some/deep/path/file.py", cfg)
 	if got != "file.py" {
 		t.Errorf("basename_only: got %q, want %q", got, "file.py")
+	}
+}
+
+func TestPrintStats_basic(t *testing.T) {
+	r, w, _ := os.Pipe()
+	old := os.Stdout
+	os.Stdout = w
+	cfg := DefaultConfig()
+	cfg.Colors = false
+	PrintStats(
+		[]string{"E501", "F401"},
+		map[string]int{"E501": 5, "F401": 1},
+		map[string]int{"E501": 2, "F401": 1},
+		map[string]string{"E501": "line too long", "F401": "unused import"},
+		3,
+		cfg,
+	)
+	w.Close()
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	s := string(out)
+	if !strings.Contains(s, "E501") {
+		t.Errorf("want E501 in stats output, got:\n%s", s)
+	}
+	if !strings.Contains(s, "6 issues · 2 rules · 3 files") {
+		t.Errorf("want summary, got:\n%s", s)
 	}
 }
