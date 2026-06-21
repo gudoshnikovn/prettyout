@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func writeYAML(t *testing.T, dir, name, content string) string {
@@ -176,5 +178,103 @@ func TestMerge_ciModeAutoNotOverridden(t *testing.T) {
 	// project CIMode is "auto" which is the default, so global should win
 	if merged.CIMode != "always" {
 		t.Errorf("global ci_mode=always should win when project is default auto, got %q", merged.CIMode)
+	}
+}
+
+func TestLoadFile_invalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := writeYAML(t, dir, "config.yaml", "enabled: {[invalid yaml")
+	// yaml.Unmarshal fails → returns defaults
+	cfg := loadFile(path)
+	if cfg.CIMode != "auto" {
+		t.Errorf("invalid YAML: want default CIMode 'auto', got %q", cfg.CIMode)
+	}
+}
+
+func TestLoadFile_nullFields(t *testing.T) {
+	dir := t.TempDir()
+	// YAML with explicit null values nullifies the map fields after unmarshal
+	path := writeYAML(t, dir, "config.yaml", `
+enabled: ~
+plugins: ~
+settings: ~
+custom_tools: ~
+ci_mode: ""
+`)
+	cfg := loadFile(path)
+	// nil checks in loadFile should re-initialize all maps
+	if cfg.Enabled == nil {
+		t.Error("Enabled should not be nil after loadFile nil-check")
+	}
+	if cfg.Plugins == nil {
+		t.Error("Plugins should not be nil after loadFile nil-check")
+	}
+	if cfg.Settings == nil {
+		t.Error("Settings should not be nil after loadFile nil-check")
+	}
+	if cfg.CustomTools == nil {
+		t.Error("CustomTools should not be nil after loadFile nil-check")
+	}
+	if cfg.CIMode != "auto" {
+		t.Errorf("empty ci_mode should default to 'auto', got %q", cfg.CIMode)
+	}
+}
+
+func TestMergeConfigs_withSettings(t *testing.T) {
+	global := defaults()
+	global.Settings["ruff"] = FormatterSettings{GroupBy: "file"}
+
+	project := defaults()
+	project.Settings["mypy"] = FormatterSettings{GroupBy: "rule"}
+
+	merged := mergeConfigs(global, project)
+	if merged.Settings["ruff"].GroupBy != "file" {
+		t.Error("global setting for ruff should survive merge")
+	}
+	if merged.Settings["mypy"].GroupBy != "rule" {
+		t.Error("project setting for mypy should be merged in")
+	}
+}
+
+func TestMergeConfigs_withCustomTools(t *testing.T) {
+	global := defaults()
+	global.CustomTools["mytool"] = registry.ToolConfig{Plugin: "~/bin/mytool-fmt"}
+
+	project := defaults()
+	project.CustomTools["othertool"] = registry.ToolConfig{Plugin: "~/bin/other-fmt"}
+
+	merged := mergeConfigs(global, project)
+	if merged.CustomTools["mytool"].Plugin != "~/bin/mytool-fmt" {
+		t.Error("global custom tool should survive merge")
+	}
+	if merged.CustomTools["othertool"].Plugin != "~/bin/other-fmt" {
+		t.Error("project custom tool should be merged in")
+	}
+}
+
+func TestCopySettingsMap_nonEmpty(t *testing.T) {
+	m := map[string]FormatterSettings{
+		"ruff": {GroupBy: "file"},
+		"mypy": {GroupBy: "rule"},
+	}
+	out := copySettingsMap(m)
+	if len(out) != 2 {
+		t.Errorf("copySettingsMap: got %d entries, want 2", len(out))
+	}
+	if out["ruff"].GroupBy != "file" {
+		t.Error("copySettingsMap: ruff.GroupBy should be 'file'")
+	}
+}
+
+func TestCopyToolMap_nonEmpty(t *testing.T) {
+	m := map[string]registry.ToolConfig{
+		"mytool": {Plugin: "~/bin/mytool"},
+	}
+	out := copyToolMap(m)
+	if len(out) != 1 {
+		t.Errorf("copyToolMap: got %d entries, want 1", len(out))
+	}
+	if out["mytool"].Plugin != "~/bin/mytool" {
+		t.Error("copyToolMap: mytool.Plugin not preserved")
 	}
 }
