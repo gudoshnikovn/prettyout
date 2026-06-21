@@ -171,3 +171,50 @@ func TestMustLoadBuiltin(t *testing.T) {
 		t.Error("mustLoadBuiltin: want ruff in registry")
 	}
 }
+
+func TestRunSetup_addsHook(t *testing.T) {
+	setupTempHome(t)
+	out := captureOutput(func() { runSetup() })
+	if !strings.Contains(out, "Added to") {
+		t.Errorf("runSetup: want 'Added to', got:\n%s", out)
+	}
+	if !strings.Contains(out, "source") {
+		t.Errorf("runSetup: want 'source' instruction, got:\n%s", out)
+	}
+}
+
+func TestRunSetup_alreadyPresent(t *testing.T) {
+	setupTempHome(t)
+	// Pre-create the rc file with the hook already present
+	home := os.Getenv("HOME")
+	rcFile := home + "/.zshrc"
+	if err := os.WriteFile(rcFile, []byte(`eval "$(prettyout hook zsh)"`+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out := captureOutput(func() { runSetup() })
+	if !strings.Contains(out, "already present") {
+		t.Errorf("runSetup already present: want 'already present', got:\n%s", out)
+	}
+}
+
+func TestRunStatus_hookInstalled(t *testing.T) {
+	setupTempHome(t)
+	// Pre-create the rc file with the hook to cover the hookStatus="✓" branch
+	home := os.Getenv("HOME")
+	rcFile := home + "/.zshrc"
+	if err := os.WriteFile(rcFile, []byte(`eval "$(prettyout hook zsh)"`+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out := captureOutput(func() { runStatus() })
+	if !strings.Contains(out, "✓") {
+		t.Errorf("runStatus with hook installed: want '✓', got:\n%s", out)
+	}
+}
+
+func TestRcFilePath_bash(t *testing.T) {
+	setupTempHome(t)
+	got := rcFilePath("bash")
+	if !strings.HasSuffix(got, "/.bashrc") {
+		t.Errorf("rcFilePath(bash) = %q, want .../.bashrc", got)
+	}
+}

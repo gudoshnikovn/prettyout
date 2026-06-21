@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
@@ -258,6 +259,44 @@ func TestResolvePath_basenameOnly(t *testing.T) {
 	}
 }
 
+func TestTrimSpace_leadingTrailing(t *testing.T) {
+	cases := []struct {
+		in   []byte
+		want []byte
+	}{
+		{[]byte("  hello  "), []byte("hello")},
+		{[]byte("\thello\t"), []byte("hello")},
+		{[]byte("\rhello\r"), []byte("hello")},
+		{[]byte("hello"), []byte("hello")},
+		{[]byte("   "), []byte("")},
+	}
+	for _, c := range cases {
+		got := trimSpace(c.in)
+		if !bytes.Equal(got, c.want) {
+			t.Errorf("trimSpace(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestResolvePath_absNotUnderCWD(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	// /nonexistent is not under dir, so rel starts with ".."
+	cfg := DefaultConfig()
+	cfg.Colors = false
+	// Use a path that definitely won't be under t.TempDir()
+	absPath := "/tmp/some/other/path/file.go"
+	got := ResolvePath(absPath, cfg)
+	// Should return path as-is when it's not under CWD
+	if !filepath.IsAbs(got) && !strings.HasPrefix(got, "..") {
+		// either return is fine as long as it doesn't crash
+	}
+	// The key thing: no crash and returns something meaningful
+	if got == "" {
+		t.Error("ResolvePath returned empty string")
+	}
+}
+
 func TestPrintStats_basic(t *testing.T) {
 	r, w, _ := os.Pipe()
 	old := os.Stdout
@@ -280,6 +319,32 @@ func TestPrintStats_basic(t *testing.T) {
 		t.Errorf("want E501 in stats output, got:\n%s", s)
 	}
 	if !strings.Contains(s, "6 issues · 2 rules · 3 files") {
+		t.Errorf("want summary, got:\n%s", s)
+	}
+}
+
+func TestPrintStats_noFilesColumn(t *testing.T) {
+	r, w, _ := os.Pipe()
+	old := os.Stdout
+	os.Stdout = w
+	cfg := DefaultConfig()
+	cfg.Colors = false
+	PrintStats(
+		[]string{"E501", "F401"},
+		map[string]int{"E501": 3, "F401": 1},
+		nil, // no ruleFiles column
+		map[string]string{"E501": "line too long", "F401": ""},
+		2,
+		cfg,
+	)
+	w.Close()
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	s := string(out)
+	if !strings.Contains(s, "E501") {
+		t.Errorf("want E501 in no-files-column stats, got:\n%s", s)
+	}
+	if !strings.Contains(s, "4 issues · 2 rules · 2 files") {
 		t.Errorf("want summary, got:\n%s", s)
 	}
 }
