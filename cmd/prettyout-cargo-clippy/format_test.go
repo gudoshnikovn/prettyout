@@ -168,3 +168,31 @@ func TestFormat_onlyRules(t *testing.T) {
 		t.Errorf("E0308 should appear, got:\n%s", out)
 	}
 }
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(clippyNDJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_noSpan_noLine(t *testing.T) {
+	// A compiler-message with empty spans produces line==0 → else branch in formatByRule
+	// and len(ls)==0 → plain file line in output
+	cfg := noColors()
+	input := `{"reason":"compiler-message","message":{"level":"warning","message":"unused import","code":{"code":"unused_imports"},"spans":[]}}` + "\n"
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "unused_imports") {
+		t.Errorf("noSpan: want unused_imports in output, got:\n%s", out)
+	}
+}

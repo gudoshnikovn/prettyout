@@ -121,6 +121,24 @@ func TestFormat_byFile_onlyRules(t *testing.T) {
 	}
 }
 
+func TestFormat_withScanErrors(t *testing.T) {
+	cfg := noColors()
+	// Provide a report with non-empty errors to cover the stderr warning branch
+	input := `{
+  "results": [],
+  "errors": [{"message": "scan error: permission denied"}]
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// Errors are written to stderr, not stdout; output should still show 0 issues
+	if !strings.Contains(out, "0 issues") {
+		t.Errorf("scan errors: want 0 issues in stdout, got:\n%s", out)
+	}
+}
+
 func TestShortCheckID(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"rules.python.dangerous-eval", "dangerous-eval"},

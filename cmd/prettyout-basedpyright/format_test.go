@@ -152,3 +152,63 @@ func TestFirstLine(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "no newline")
 	}
 }
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"reportMissingImports"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has reportUndefinedVariable → filtered out
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}
+
+func TestSeverityRank_info(t *testing.T) {
+	if got := severityRank("information"); got != 1 {
+		t.Errorf("severityRank(information) = %d, want 1", got)
+	}
+	if got := severityRank("INFO"); got != 1 {
+		t.Errorf("severityRank(INFO) = %d, want 1", got)
+	}
+}
+
+func TestSeverityRank_default(t *testing.T) {
+	if got := severityRank("unknown"); got != 0 {
+		t.Errorf("severityRank(unknown) = %d, want 0", got)
+	}
+}
+
+func TestFormat_byRule_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	cfg.GroupBy = "file"
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("byFile withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}

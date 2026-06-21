@@ -133,3 +133,34 @@ func TestFormat_invalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"DL3008"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// Dockerfile.dev only has DL3000, should be filtered out
+	if strings.Contains(out, "Dockerfile.dev") {
+		t.Errorf("byFile+onlyRules: Dockerfile.dev should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Dockerfile") {
+		t.Errorf("byFile+onlyRules: Dockerfile should appear, got:\n%s", out)
+	}
+}

@@ -172,3 +172,27 @@ func TestCleanFilename(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "bar.py")
 	}
 }
+
+func TestSeverityColor_low(t *testing.T) {
+	// LOW/unknown goes to default branch → returns ""
+	if got := severityColor("LOW", true); got != "" {
+		t.Errorf("severityColor(LOW, true) = %q, want empty", got)
+	}
+}
+
+func TestFormat_withErrors(t *testing.T) {
+	// Non-empty errors slice triggers the stderr warning branch
+	cfg := noColors()
+	input := `{
+  "errors": [{"filename":"bad.py","reason":"syntax error"}],
+  "results": []
+}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "0 issues") {
+		t.Errorf("withErrors: want 0 issues in stdout, got:\n%s", out)
+	}
+}

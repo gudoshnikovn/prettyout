@@ -138,3 +138,49 @@ func TestFormat_nonJSONInput(t *testing.T) {
 		t.Error("expected error for non-JSON input")
 	}
 }
+
+func TestFormat_parseError_noLine(t *testing.T) {
+	// parseErrors in stylelint output create issues with line: 0
+	// This covers the else branch in formatByRule when iss.line == 0
+	cfg := noColors()
+	input := `[{"source":"bad.css","parseErrors":[{}],"warnings":[]}]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "parse-error") {
+		t.Errorf("parse error: want 'parse-error' in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"color-no-invalid-hex"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.css only has unit-no-unknown, should be filtered out
+	if strings.Contains(out, "bar.css") {
+		t.Errorf("byFile+onlyRules: bar.css should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.css") {
+		t.Errorf("byFile+onlyRules: foo.css should appear, got:\n%s", out)
+	}
+}

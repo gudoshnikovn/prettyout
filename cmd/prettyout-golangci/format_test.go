@@ -162,3 +162,44 @@ func TestFormat_invalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_emptyLinterName(t *testing.T) {
+	// FromLinter="" and Filename="" → both fall back to "unknown"
+	cfg := noColors()
+	input := `{"Issues":[{"FromLinter":"","Text":"some issue","Pos":{"Filename":"","Line":0}}]}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "unknown") {
+		t.Errorf("empty linter: want 'unknown' fallback, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_emptyLinterName(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	input := `{"Issues":[{"FromLinter":"","Text":"some issue","Pos":{"Filename":"","Line":0}}]}`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "unknown") {
+		t.Errorf("byFile empty linter: want 'unknown' fallback, got:\n%s", out)
+	}
+}

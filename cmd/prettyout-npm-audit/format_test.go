@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -170,5 +171,24 @@ func TestFormat_emptySeverity(t *testing.T) {
 	})
 	if !strings.Contains(out, "info") {
 		t.Errorf("empty severity: want 'info', got:\n%s", out)
+	}
+}
+func TestNpmColor_defaultSev(t *testing.T) {
+	// "info" and "low" fall through to default → blue ANSI code
+	got := npmColor("info", true)
+	if got == "" {
+		t.Error("npmColor(info, true): want ANSI code, got empty")
+	}
+	got2 := npmColor("low", true)
+	if got2 == "" {
+		t.Error("npmColor(low, true): want ANSI code, got empty")
+	}
+}
+
+func TestFixLabel_invalidRaw(t *testing.T) {
+	// A JSON value that's neither bool nor object (e.g., number) → falls through to "no fix"
+	raw := json.RawMessage("42")
+	if got := fixLabel(raw); got != "no fix" {
+		t.Errorf("fixLabel(42) = %q, want 'no fix'", got)
 	}
 }

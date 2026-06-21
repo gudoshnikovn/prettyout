@@ -132,3 +132,35 @@ func TestFormat_invalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	// formatByFile uses full category name (not shortCategoryID)
+	cfg.OnlyRules = []string{"lint/correctness/noUnusedVariables"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.js only has lint/style/noVar → filtered out
+	if strings.Contains(out, "bar.js") {
+		t.Errorf("byFile+onlyRules: bar.js should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.js") {
+		t.Errorf("byFile+onlyRules: foo.js should appear, got:\n%s", out)
+	}
+}

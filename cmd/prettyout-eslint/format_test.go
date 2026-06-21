@@ -153,3 +153,55 @@ func TestFormat_emptyFileSkipped(t *testing.T) {
 		t.Errorf("file with no messages should yield 0 issues, got:\n%s", out)
 	}
 }
+
+func TestRuleId_nil(t *testing.T) {
+	m := eslintMessage{RuleId: nil, Severity: 2, Message: "Parsing error", Line: 1}
+	if got := ruleId(m); got != "parse-error" {
+		t.Errorf("ruleId(nil) = %q, want parse-error", got)
+	}
+}
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("withColors: want ANSI codes in output, got:\n%s", out)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"no-unused-vars"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.js only has "semi" → filtered out
+	if strings.Contains(out, "bar.js") {
+		t.Errorf("byFile+onlyRules: bar.js should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.js") {
+		t.Errorf("byFile+onlyRules: foo.js should appear, got:\n%s", out)
+	}
+}
+
+func TestFormat_parseError(t *testing.T) {
+	// Message with null ruleId (parse error) goes through the ruleId==nil path
+	cfg := noColors()
+	input := `[{"filePath":"a.js","messages":[{"ruleId":null,"severity":2,"message":"Parsing error: unexpected token","line":1}]}]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "parse-error") {
+		t.Errorf("null ruleId: want 'parse-error' rule, got:\n%s", out)
+	}
+}
