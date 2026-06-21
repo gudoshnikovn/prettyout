@@ -171,20 +171,6 @@ func TestFormat_byFile_onlyRules(t *testing.T) {
 	}
 }
 
-func TestSeverityRank_info(t *testing.T) {
-	if got := severityRank("information"); got != 1 {
-		t.Errorf("severityRank(information) = %d, want 1", got)
-	}
-	if got := severityRank("INFO"); got != 1 {
-		t.Errorf("severityRank(INFO) = %d, want 1", got)
-	}
-}
-
-func TestSeverityRank_default(t *testing.T) {
-	if got := severityRank("unknown"); got != 0 {
-		t.Errorf("severityRank(unknown) = %d, want 0", got)
-	}
-}
 
 func TestFormat_byRule_withColors(t *testing.T) {
 	cfg := formatter.DefaultConfig()

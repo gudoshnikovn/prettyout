@@ -3,19 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type pylintMsg struct {
-	Type          string `json:"type"`
-	Line          int    `json:"line"`
-	Path          string `json:"path"`
-	Symbol        string `json:"symbol"`
-	Message       string `json:"message"`
-	MessageID     string `json:"message-id"` // json format
+	Type           string `json:"type"`
+	Line           int    `json:"line"`
+	Path           string `json:"path"`
+	Symbol         string `json:"symbol"`
+	Message        string `json:"message"`
+	MessageID      string `json:"message-id"` // json format
 	MessageIDJson2 string `json:"messageId"`  // json2 format
 }
 
@@ -52,10 +50,26 @@ func format(data []byte, cfg formatter.Config) error {
 	msgs := wrapper.Messages
 	score := wrapper.Statistics.Score
 
-	if cfg.GroupBy == "file" {
-		return formatByFile(msgs, cfg)
+	if err := formatter.Render(toIssues(msgs, cfg), cfg); err != nil {
+		return err
 	}
-	return formatByRule(msgs, cfg, score)
+	fmt.Printf("  ↳ rated %.2f/10\n", score)
+	return nil
+}
+
+func toIssues(raw []pylintMsg, cfg formatter.Config) []formatter.Issue {
+	out := make([]formatter.Issue, 0, len(raw))
+	for _, r := range raw {
+		out = append(out, formatter.Issue{
+			Rule:     r.msgID(),
+			Display:  ruleDisplay(r),
+			File:     formatter.ResolvePath(r.Path, cfg),
+			Line:     r.Line,
+			Message:  formatter.Truncate(r.Message, cfg.MaxMessageLength),
+			Severity: pylintSeverity(r.Type),
+		})
+	}
+	return out
 }
 
 func pylintSeverity(t string) string {
@@ -69,253 +83,9 @@ func pylintSeverity(t string) string {
 	}
 }
 
-func pylintColor(t string, colors bool) string {
-	if !colors {
-		return ""
-	}
-	switch t {
-	case "error", "fatal":
-		return "\033[1;31m"
-	case "warning":
-		return "\033[1;33m"
-	default:
-		return "\033[2m" // dim
-	}
-}
-
 func ruleDisplay(m pylintMsg) string {
 	if m.Symbol != "" {
 		return m.msgID() + "/" + m.Symbol
 	}
 	return m.msgID()
 }
-
-func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
-	rules := map[string]*ruleEntry{}
-	ruleOrder := []string{}
-
-	for _, m := range msgs {
-		key := m.msgID()
-		if key == "" {
-			key = "unknown"
-		}
-		fp := formatter.ResolvePath(m.Path, cfg)
-		if _, ok := rules[key]; !ok {
-			rules[key] = &ruleEntry{fileLines: map[string]map[int]struct{}{}}
-			ruleOrder = append(ruleOrder, key)
-		}
-		r := rules[key]
-		if r.message == "" {
-			r.message = formatter.Truncate(m.Message, cfg.MaxMessageLength)
-			r.severity = pylintSeverity(m.Type)
-			r.display = ruleDisplay(m)
-		}
-		if r.fileLines[fp] == nil {
-			r.fileLines[fp] = map[int]struct{}{}
-		}
-		r.fileLines[fp][m.Line] = struct{}{}
-	}
-
-	ruleCounts := make(map[string]int, len(ruleOrder))
-	for _, key := range ruleOrder {
-		n := 0
-		for _, lineSet := range rules[key].fileLines {
-			n += len(lineSet)
-		}
-		ruleCounts[key] = n
-	}
-	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
-	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
-
-	displayedIssues := 0
-	for _, key := range ruleOrder {
-		displayedIssues += ruleCounts[key]
-	}
-
-	totalFiles := map[string]struct{}{}
-	for _, m := range msgs {
-		totalFiles[formatter.ResolvePath(m.Path, cfg)] = struct{}{}
-	}
-
-	if cfg.Stats {
-		// pylint uses display names (e.g. C0301/line-too-long) instead of raw keys
-		statsOrder := make([]string, len(ruleOrder))
-		statsCounts := make(map[string]int, len(ruleOrder))
-		statsFiles := make(map[string]int, len(ruleOrder))
-		statsMsgs := make(map[string]string, len(ruleOrder))
-		for i, key := range ruleOrder {
-			r := rules[key]
-			disp := r.display
-			statsOrder[i] = disp
-			statsCounts[disp] = ruleCounts[key]
-			statsFiles[disp] = len(r.fileLines)
-			statsMsgs[disp] = r.message
-		}
-		formatter.PrintStats(statsOrder, statsCounts, statsFiles, statsMsgs, len(totalFiles), cfg)
-		return nil
-	}
-
-	for _, key := range ruleOrder {
-		r := rules[key]
-
-		hasMatchingFile := false
-		for f := range r.fileLines {
-			if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
-				hasMatchingFile = true
-				break
-			}
-		}
-		if !hasMatchingFile {
-			continue
-		}
-
-		count := 0
-		for _, lineSet := range r.fileLines {
-			count += len(lineSet)
-		}
-
-		// find the type for this rule
-		msgType := ""
-		for _, m := range msgs {
-			if m.msgID() == key {
-				msgType = m.Type
-				break
-			}
-		}
-		col := pylintColor(msgType, cfg.Colors)
-		reset := ""
-		if cfg.Colors {
-			reset = "\033[0m"
-		}
-		label := formatter.SeverityLabel(msgType)
-		if cfg.Colors {
-			fmt.Printf("%s[%s]%s %s (%d) — %s\n", col, label, reset, r.display, count, r.message)
-		} else {
-			fmt.Printf("[%s] %s (%d) — %s\n", label, r.display, count, r.message)
-		}
-		fmt.Println("Affected files:")
-
-		files := make([]string, 0, len(r.fileLines))
-		for f := range r.fileLines {
-			files = append(files, f)
-		}
-		sort.Strings(files)
-
-		for _, f := range files {
-			if !formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
-				continue
-			}
-			lineSet := r.fileLines[f]
-			ls := make([]int, 0, len(lineSet))
-			for l := range lineSet {
-				ls = append(ls, l)
-			}
-			sort.Ints(ls)
-			lineStrs := make([]string, len(ls))
-			for i, l := range ls {
-				lineStrs[i] = fmt.Sprintf("%d", l)
-			}
-			label := "lines"
-			if len(ls) == 1 {
-				label = "line"
-			}
-			fmt.Printf("  - %s — %s %s\n", f, label, strings.Join(lineStrs, ", "))
-		}
-		fmt.Println(formatter.Divider)
-	}
-
-	fmt.Println(formatter.Summary(displayedIssues, len(ruleOrder), len(totalFiles)))
-	fmt.Printf("  ↳ rated %.2f/10\n", score)
-	return nil
-}
-
-func formatByFile(msgs []pylintMsg, cfg formatter.Config) error {
-	type lineEntry struct {
-		rule    string
-		line    int
-		message string
-	}
-	// fileMap stores deduplicated (rule, line) pairs per file
-	type ruleLineKey struct {
-		rule string
-		line int
-	}
-	fileMap := map[string][]lineEntry{}
-	fileSeen := map[string]map[ruleLineKey]struct{}{}
-	fileOrder := []string{}
-	allRules := map[string]struct{}{}
-
-	for _, m := range msgs {
-		key := ruleDisplay(m)
-		if m.msgID() == "" {
-			key = "unknown"
-		}
-		allRules[key] = struct{}{}
-		fp := formatter.ResolvePath(m.Path, cfg)
-		if _, ok := fileMap[fp]; !ok {
-			fileOrder = append(fileOrder, fp)
-			fileSeen[fp] = map[ruleLineKey]struct{}{}
-		}
-		rlk := ruleLineKey{rule: key, line: m.Line}
-		if _, seen := fileSeen[fp][rlk]; seen {
-			continue
-		}
-		fileSeen[fp][rlk] = struct{}{}
-		fileMap[fp] = append(fileMap[fp], lineEntry{rule: key, line: m.Line, message: formatter.Truncate(m.Message, cfg.MaxMessageLength)})
-	}
-
-	filteredOrder := fileOrder[:0:0]
-	for _, f := range fileOrder {
-		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
-			filteredOrder = append(filteredOrder, f)
-		}
-	}
-	fileOrder = filteredOrder
-	sort.Strings(fileOrder)
-
-	totalIssues := 0
-	for _, f := range fileOrder {
-		entries := fileMap[f]
-		var filteredEntries []lineEntry
-		for _, e := range entries {
-			if len(cfg.OnlyRules) > 0 {
-				found := false
-				for _, r := range cfg.OnlyRules {
-					if e.rule == r {
-						found = true
-						break
-					}
-				}
-				if !found {
-					continue
-				}
-			}
-			filteredEntries = append(filteredEntries, e)
-		}
-		if len(filteredEntries) == 0 {
-			continue
-		}
-		sort.Slice(filteredEntries, func(i, j int) bool {
-			if filteredEntries[i].line != filteredEntries[j].line {
-				return filteredEntries[i].line < filteredEntries[j].line
-			}
-			return filteredEntries[i].rule < filteredEntries[j].rule
-		})
-		fmt.Printf("%s — %d %s\n", f, len(filteredEntries), formatter.Plural(len(filteredEntries), "issue", "issues"))
-		prevRule := ""
-		for _, e := range filteredEntries {
-			msg := ""
-			if e.rule != prevRule {
-				msg = " — " + e.message
-				prevRule = e.rule
-			}
-			fmt.Printf("  %s  line %d%s\n", e.rule, e.line, msg)
-		}
-		fmt.Println(formatter.Divider)
-		totalIssues += len(filteredEntries)
-	}
-
-	fmt.Println(formatter.Summary(totalIssues, len(allRules), len(fileOrder)))
-	return nil
-}
-

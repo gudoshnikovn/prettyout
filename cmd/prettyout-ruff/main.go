@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/gudoshnikovn/prettyout/pkg/formatter"
@@ -36,229 +35,24 @@ func format(data []byte, cfg formatter.Config) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	if cfg.GroupBy == "file" {
-		return formatByFile(issues, cfg)
+	if err := formatter.Render(toIssues(issues, cfg), cfg); err != nil {
+		return err
 	}
-	return formatByRule(issues, cfg)
-}
-
-// fileLines tracks lines per file for a rule group.
-type fileLines struct {
-	file  string
-	lines []int
-}
-
-type ruleGroup struct {
-	message string
-	files   map[string]*fileLines // keyed by resolved path
-	order   []string              // insertion order for files
-}
-
-func formatByRule(issues []issue, cfg formatter.Config) error {
-	rules := map[string]*ruleGroup{}
-	var ruleOrder []string
-
-	for _, iss := range issues {
-		code := iss.Code
-		if code == "" {
-			code = "UNKNOWN"
-		}
-		path := formatter.ResolvePath(iss.Filename, cfg)
-
-		if _, ok := rules[code]; !ok {
-			rules[code] = &ruleGroup{files: map[string]*fileLines{}}
-			ruleOrder = append(ruleOrder, code)
-		}
-		rg := rules[code]
-		if rg.message == "" {
-			rg.message = formatter.Truncate(iss.Message, cfg.MaxMessageLength)
-		}
-		if _, ok := rg.files[path]; !ok {
-			rg.files[path] = &fileLines{file: path}
-			rg.order = append(rg.order, path)
-		}
-		rg.files[path].lines = append(rg.files[path].lines, iss.Location.Row)
-	}
-
-	ruleCounts := make(map[string]int, len(ruleOrder))
-	for _, code := range ruleOrder {
-		rg := rules[code]
-		n := 0
-		for _, fl := range rg.files {
-			n += len(fl.lines)
-		}
-		ruleCounts[code] = n
-	}
-	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
-	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
-
-	totalIssues := len(issues)
-	totalFiles := countDistinctFiles(issues, cfg)
-
-	if cfg.Stats {
-		ruleFileCount := make(map[string]int, len(ruleOrder))
-		ruleMessages := make(map[string]string, len(ruleOrder))
-		for _, code := range ruleOrder {
-			rg := rules[code]
-			ruleFileCount[code] = len(rg.files)
-			ruleMessages[code] = rg.message
-		}
-		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, totalFiles, cfg)
-		return nil
-	}
-
-	for _, code := range ruleOrder {
-		rg := rules[code]
-
-		hasMatchingFile := false
-		for _, path := range rg.order {
-			if formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
-				hasMatchingFile = true
-				break
-			}
-		}
-		if !hasMatchingFile {
-			continue
-		}
-
-		count := 0
-		for _, fl := range rg.files {
-			count += len(fl.lines)
-		}
-
-		if cfg.Colors {
-			fmt.Printf("\033[1;33m%s\033[0m (%d) — \033[1m%s\033[0m\n", code, count, rg.message)
-		} else {
-			fmt.Printf("%s (%d) — %s\n", code, count, rg.message)
-		}
-		fmt.Println("Affected files:")
-
-		// Sort files alphabetically
-		sortedFiles := make([]string, len(rg.order))
-		copy(sortedFiles, rg.order)
-		sort.Strings(sortedFiles)
-
-		for _, path := range sortedFiles {
-			if !formatter.MatchesFileFilter(path, cfg.OnlyFiles) {
-				continue
-			}
-			fl := rg.files[path]
-			sort.Ints(fl.lines)
-			lineLabel := formatter.FormatLines(fl.lines)
-			fmt.Printf("  - %s — %s\n", fl.file, lineLabel)
-		}
-		fmt.Println(formatter.Divider)
-	}
-
-	fmt.Println(formatter.Summary(totalIssues, len(ruleOrder), totalFiles))
 	printFixHint(issues)
 	return nil
 }
 
-// issueEntry holds a parsed issue with resolved path for file-mode grouping.
-type issueEntry struct {
-	path    string
-	code    string
-	message string
-	line    int
-}
-
-func formatByFile(issues []issue, cfg formatter.Config) error {
-	type fileGroup struct {
-		path   string
-		issues []issueEntry
-	}
-
-	files := map[string]*fileGroup{}
-	var fileOrder []string
-
-	for _, iss := range issues {
-		path := formatter.ResolvePath(iss.Filename, cfg)
-		code := iss.Code
-		if code == "" {
-			code = "UNKNOWN"
-		}
-		if _, ok := files[path]; !ok {
-			files[path] = &fileGroup{path: path}
-			fileOrder = append(fileOrder, path)
-		}
-		files[path].issues = append(files[path].issues, issueEntry{
-			path:    path,
-			code:    code,
-			message: formatter.Truncate(iss.Message, cfg.MaxMessageLength),
-			line:    iss.Location.Row,
+func toIssues(raw []issue, cfg formatter.Config) []formatter.Issue {
+	out := make([]formatter.Issue, 0, len(raw))
+	for _, r := range raw {
+		out = append(out, formatter.Issue{
+			Rule:    r.Code,
+			File:    formatter.ResolvePath(r.Filename, cfg),
+			Line:    r.Location.Row,
+			Message: formatter.Truncate(r.Message, cfg.MaxMessageLength),
 		})
 	}
-
-	filtered := fileOrder[:0:0]
-	for _, f := range fileOrder {
-		if formatter.MatchesFileFilter(f, cfg.OnlyFiles) {
-			filtered = append(filtered, f)
-		}
-	}
-	fileOrder = filtered
-	sort.Strings(fileOrder)
-
-	// Count distinct rules for summary
-	ruleSeen := map[string]struct{}{}
-	for _, iss := range issues {
-		code := iss.Code
-		if code == "" {
-			code = "UNKNOWN"
-		}
-		ruleSeen[code] = struct{}{}
-	}
-
-	for _, path := range fileOrder {
-		fg := files[path]
-		// Sort by line number
-		sort.Slice(fg.issues, func(i, j int) bool {
-			return fg.issues[i].line < fg.issues[j].line
-		})
-
-		// Pre-filter by OnlyRules
-		filteredIssues := fg.issues[:0:0]
-		for _, e := range fg.issues {
-			if len(cfg.OnlyRules) > 0 {
-				found := false
-				for _, r := range cfg.OnlyRules {
-					if e.code == r {
-						found = true
-						break
-					}
-				}
-				if !found {
-					continue
-				}
-			}
-			filteredIssues = append(filteredIssues, e)
-		}
-		if len(filteredIssues) == 0 {
-			continue
-		}
-
-		fmt.Printf("%s — %d %s\n", fg.path, len(filteredIssues), formatter.Plural(len(filteredIssues), "issue", "issues"))
-
-		// Track last seen rule to suppress repeated messages
-		lastCode := ""
-		for _, e := range filteredIssues {
-			msg := ""
-			if e.code != lastCode {
-				msg = "  — " + e.message
-				lastCode = e.code
-			}
-			if cfg.Colors {
-				fmt.Printf("  \033[1;33m%s\033[0m  line %d%s\n", e.code, e.line, msg)
-			} else {
-				fmt.Printf("  %s  line %d%s\n", e.code, e.line, msg)
-			}
-		}
-		fmt.Println(formatter.Divider)
-	}
-
-	fmt.Println(formatter.Summary(len(issues), len(ruleSeen), len(fileOrder)))
-	printFixHint(issues)
-	return nil
+	return out
 }
 
 func printFixHint(issues []issue) {
@@ -281,12 +75,3 @@ func printFixHint(issues []issue) {
 		fmt.Printf("  ↳ %d fixable with --unsafe-fixes\n", unsafe)
 	}
 }
-
-func countDistinctFiles(issues []issue, cfg formatter.Config) int {
-	seen := map[string]struct{}{}
-	for _, iss := range issues {
-		seen[formatter.ResolvePath(iss.Filename, cfg)] = struct{}{}
-	}
-	return len(seen)
-}
-

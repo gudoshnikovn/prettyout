@@ -134,17 +134,7 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
-func TestSeverityColor_withColors(t *testing.T) {
-	if severityColor("HIGH", true) == "" {
-		t.Error("severityColor(HIGH, true): want ANSI code")
-	}
-	if severityColor("MEDIUM", true) == "" {
-		t.Error("severityColor(MEDIUM, true): want ANSI code")
-	}
-	if severityColor("HIGH", false) != "" {
-		t.Error("severityColor(HIGH, false): want empty")
-	}
-}
+
 
 func TestFormat_byFile_onlyRules(t *testing.T) {
 	cfg := noColors()
@@ -173,12 +163,7 @@ func TestCleanFilename(t *testing.T) {
 	}
 }
 
-func TestSeverityColor_low(t *testing.T) {
-	// LOW/unknown goes to default branch → returns ""
-	if got := severityColor("LOW", true); got != "" {
-		t.Errorf("severityColor(LOW, true) = %q, want empty", got)
-	}
-}
+
 
 func TestFormat_withErrors(t *testing.T) {
 	// Non-empty errors slice triggers the stderr warning branch

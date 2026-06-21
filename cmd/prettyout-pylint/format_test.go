@@ -109,8 +109,8 @@ func TestFormat_statsMode(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if !strings.Contains(out, "line-too-long") {
-		t.Errorf("stats: want line-too-long, got:\n%s", out)
+	if !strings.Contains(out, "C0301") {
+		t.Errorf("stats: want C0301, got:\n%s", out)
 	}
 }
 
@@ -167,20 +167,7 @@ func TestPylintSeverity_info(t *testing.T) {
 	}
 }
 
-func TestPylintColor_branches(t *testing.T) {
-	if pylintColor("error", true) == "" {
-		t.Error("pylintColor(error, true): want ANSI code")
-	}
-	if pylintColor("warning", true) == "" {
-		t.Error("pylintColor(warning, true): want ANSI code")
-	}
-	if pylintColor("info", true) == "" {
-		t.Error("pylintColor(info, true): want ANSI code")
-	}
-	if pylintColor("error", false) != "" {
-		t.Error("pylintColor(error, false): want empty string")
-	}
-}
+
 
 func TestRuleDisplay_withSymbol(t *testing.T) {
 	m := pylintMsg{Symbol: "line-too-long", MessageIDJson2: "C0301"}
@@ -199,8 +186,8 @@ func TestRuleDisplay_noSymbol(t *testing.T) {
 func TestFormat_byFile_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.GroupBy = "file"
-	// formatByFile uses ruleDisplay format ("msgID/symbol") as the key
-	cfg.OnlyRules = []string{"C0301/line-too-long"}
+	// generic engine uses Rule (msgID) for filtering
+	cfg.OnlyRules = []string{"C0301"}
 	out := captureOutput(func() {
 		if err := format([]byte(twoFileJSON), cfg); err != nil {
 			t.Error(err)
