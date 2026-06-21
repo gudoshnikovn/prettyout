@@ -131,6 +131,36 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
+func TestShellcheckColor_withColors(t *testing.T) {
+	if shellcheckColor("error", true) == "" {
+		t.Error("shellcheckColor(error, true): want ANSI code")
+	}
+	if shellcheckColor("warning", true) == "" {
+		t.Error("shellcheckColor(warning, true): want ANSI code")
+	}
+	if shellcheckColor("info", true) == "" {
+		t.Error("shellcheckColor(info, true): want ANSI code (dim)")
+	}
+	if shellcheckColor("error", false) != "" {
+		t.Error("shellcheckColor(error, false): want empty")
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"SC2034"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.sh only has SC1091, should be skipped
+	if strings.Contains(out, "bar.sh") {
+		t.Errorf("byFile+onlyRules: bar.sh should be filtered, got:\n%s", out)
+	}
+}
+
 func TestScCode(t *testing.T) {
 	if got := scCode(2034); got != "SC2034" {
 		t.Errorf("got %q, want SC2034", got)

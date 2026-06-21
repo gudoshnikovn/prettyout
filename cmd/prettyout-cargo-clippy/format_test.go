@@ -109,6 +109,50 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
+func TestRuleCode_nil(t *testing.T) {
+	cl := clippyLine{Message: clippyMessage{Code: nil}}
+	if got := ruleCode(cl); got != "rustc" {
+		t.Errorf("ruleCode(nil code) = %q, want rustc", got)
+	}
+}
+
+func TestPrimarySpan_noSpans(t *testing.T) {
+	cl := clippyLine{Message: clippyMessage{Spans: nil}}
+	file, line := primarySpan(cl)
+	if file != "" || line != 0 {
+		t.Errorf("primarySpan(no spans) = (%q, %d), want ('', 0)", file, line)
+	}
+}
+
+func TestPrimarySpan_fallbackToFirst(t *testing.T) {
+	cl := clippyLine{Message: clippyMessage{Spans: []clippySpan{
+		{FileName: "a.rs", LineStart: 5, IsPrimary: false},
+		{FileName: "b.rs", LineStart: 10, IsPrimary: false},
+	}}}
+	file, line := primarySpan(cl)
+	if file != "a.rs" || line != 5 {
+		t.Errorf("primarySpan(no primary) = (%q, %d), want (a.rs, 5)", file, line)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"E0308"}
+	out := captureOutput(func() {
+		if err := format([]byte(clippyNDJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// src/foo.rs only has unused_variables, should be skipped
+	if strings.Contains(out, "src/foo.rs") {
+		t.Errorf("byFile+onlyRules: foo.rs should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "src/bar.rs") {
+		t.Errorf("byFile+onlyRules: bar.rs should appear, got:\n%s", out)
+	}
+}
+
 func TestFormat_onlyRules(t *testing.T) {
 	cfg := noColors()
 	cfg.OnlyRules = []string{"E0308"}

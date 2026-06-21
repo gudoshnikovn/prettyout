@@ -141,3 +141,76 @@ func TestFormat_invalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestMsgID_json2Field(t *testing.T) {
+	// MessageIDJson2 ("messageId" key) takes priority.
+	m := pylintMsg{MessageIDJson2: "C0301", MessageID: ""}
+	if got := m.msgID(); got != "C0301" {
+		t.Errorf("msgID json2 = %q, want C0301", got)
+	}
+}
+
+func TestMsgID_fallbackToMessageID(t *testing.T) {
+	// When MessageIDJson2 is empty, fall back to MessageID ("message-id" key).
+	m := pylintMsg{MessageIDJson2: "", MessageID: "W0611"}
+	if got := m.msgID(); got != "W0611" {
+		t.Errorf("msgID fallback = %q, want W0611", got)
+	}
+}
+
+func TestPylintSeverity_info(t *testing.T) {
+	if got := pylintSeverity("convention"); got != "info" {
+		t.Errorf("pylintSeverity(convention) = %q, want info", got)
+	}
+	if got := pylintSeverity("refactor"); got != "info" {
+		t.Errorf("pylintSeverity(refactor) = %q, want info", got)
+	}
+}
+
+func TestPylintColor_branches(t *testing.T) {
+	if pylintColor("error", true) == "" {
+		t.Error("pylintColor(error, true): want ANSI code")
+	}
+	if pylintColor("warning", true) == "" {
+		t.Error("pylintColor(warning, true): want ANSI code")
+	}
+	if pylintColor("info", true) == "" {
+		t.Error("pylintColor(info, true): want ANSI code")
+	}
+	if pylintColor("error", false) != "" {
+		t.Error("pylintColor(error, false): want empty string")
+	}
+}
+
+func TestRuleDisplay_withSymbol(t *testing.T) {
+	m := pylintMsg{Symbol: "line-too-long", MessageIDJson2: "C0301"}
+	if got := ruleDisplay(m); !strings.Contains(got, "C0301") || !strings.Contains(got, "line-too-long") {
+		t.Errorf("ruleDisplay with symbol = %q", got)
+	}
+}
+
+func TestRuleDisplay_noSymbol(t *testing.T) {
+	m := pylintMsg{Symbol: "", MessageIDJson2: "C0301"}
+	if got := ruleDisplay(m); got != "C0301" {
+		t.Errorf("ruleDisplay no symbol = %q, want 'C0301'", got)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	// formatByFile uses ruleDisplay format ("msgID/symbol") as the key
+	cfg.OnlyRules = []string{"C0301/line-too-long"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has E0602/undefined-variable → skipped
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}

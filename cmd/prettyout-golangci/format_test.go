@@ -124,6 +124,24 @@ func TestFormat_onlyFiles(t *testing.T) {
 	}
 }
 
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"errcheck"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.go only has unused, should be skipped
+	if strings.Contains(out, "bar.go") {
+		t.Errorf("byFile+onlyRules: bar.go should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.go") {
+		t.Errorf("byFile+onlyRules: foo.go should appear, got:\n%s", out)
+	}
+}
+
 func TestFormat_statsMode(t *testing.T) {
 	cfg := noColors()
 	cfg.Stats = true

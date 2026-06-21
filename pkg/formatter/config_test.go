@@ -106,6 +106,63 @@ func TestApplyEnvOverrides_noVars(t *testing.T) {
 	}
 }
 
+func TestApplyFile_statsField(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, ".prettyout.yaml")
+	_ = os.WriteFile(cfgFile, []byte(`
+settings:
+  ruff:
+    stats: true
+`), 0644)
+	cfg := DefaultConfig()
+	applyFile(cfgFile, "ruff", &cfg)
+	if !cfg.Stats {
+		t.Error("stats: true should set cfg.Stats=true")
+	}
+}
+
+func TestApplyFile_extraFields(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, ".prettyout.yaml")
+	_ = os.WriteFile(cfgFile, []byte(`
+settings:
+  ruff:
+    extra:
+      basename_only: true
+`), 0644)
+	cfg := DefaultConfig()
+	applyFile(cfgFile, "ruff", &cfg)
+	if cfg.Extra["basename_only"] != true {
+		t.Errorf("extra.basename_only = %v, want true", cfg.Extra["basename_only"])
+	}
+}
+
+func TestApplyFile_toolNotInFile(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, ".prettyout.yaml")
+	_ = os.WriteFile(cfgFile, []byte(`
+settings:
+  mypy:
+    group_by: file
+`), 0644)
+	cfg := DefaultConfig()
+	applyFile(cfgFile, "ruff", &cfg)
+	if cfg.GroupBy != "rule" {
+		t.Error("applyFile for missing tool should not modify config")
+	}
+}
+
+func TestApplyFile_invalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, ".prettyout.yaml")
+	_ = os.WriteFile(cfgFile, []byte(": invalid: yaml::"), 0644)
+	cfg := DefaultConfig()
+	applyFile(cfgFile, "ruff", &cfg)
+	if cfg.GroupBy != "rule" {
+		t.Error("invalid YAML should not modify config")
+	}
+}
+
 func TestLoadConfig_readsSortAndFilters(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

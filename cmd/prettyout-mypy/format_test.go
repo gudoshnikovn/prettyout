@@ -121,6 +121,40 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
+func TestCodeStr_fallback(t *testing.T) {
+	// When Code is nil, codeStr should return "error".
+	m := mypyMsg{Code: nil}
+	if got := codeStr(m); got != "error" {
+		t.Errorf("codeStr(nil) = %q, want error", got)
+	}
+}
+
+func TestCodeStr_emptyString(t *testing.T) {
+	empty := ""
+	m := mypyMsg{Code: &empty}
+	if got := codeStr(m); got != "error" {
+		t.Errorf("codeStr(empty) = %q, want error", got)
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"assignment"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileNDJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has attr-defined, should be skipped
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}
+
 func TestFormat_onlyFiles(t *testing.T) {
 	cfg := noColors()
 	cfg.OnlyFiles = []string{"bar.py"}

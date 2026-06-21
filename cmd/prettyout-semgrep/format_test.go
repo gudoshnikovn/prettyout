@@ -103,6 +103,24 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"dangerous-eval"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has hardcoded-secret, should be skipped
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}
+
 func TestShortCheckID(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"rules.python.dangerous-eval", "dangerous-eval"},

@@ -127,6 +127,35 @@ func TestFormat_invalidJSON(t *testing.T) {
 	}
 }
 
+func TestTrivyColor_withColors(t *testing.T) {
+	if trivyColor("CRITICAL", true) == "" {
+		t.Error("trivyColor(CRITICAL, true): want ANSI code")
+	}
+	if trivyColor("MEDIUM", true) == "" {
+		t.Error("trivyColor(MEDIUM, true): want ANSI code")
+	}
+	if trivyColor("LOW", true) == "" {
+		t.Error("trivyColor(LOW, true): want ANSI code (default blue)")
+	}
+	if trivyColor("CRITICAL", false) != "" {
+		t.Error("trivyColor(CRITICAL, false): want empty")
+	}
+}
+
+func TestFormat_byFile_onlyFiles_noMatch(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyFiles = []string{"other.json"}
+	out := captureOutput(func() {
+		if err := format([]byte(trivyJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if strings.Contains(out, "CVE-2023-001") {
+		t.Errorf("byFile+onlyFiles: CVEs should be filtered, got:\n%s", out)
+	}
+}
+
 func TestSeverityRank(t *testing.T) {
 	if severityRank("CRITICAL") >= severityRank("HIGH") {
 		t.Error("CRITICAL should rank before HIGH")

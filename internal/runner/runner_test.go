@@ -289,3 +289,160 @@ func TestExecute_returnsPluginError_whenToolSucceeds(t *testing.T) {
 	// Integration-level concern; covered by verifying Execute checks pluginCmd exit code.
 	t.Skip("covered by integration test in test/run.sh")
 }
+
+// debug=true tests — cover all the fmt.Fprintf(os.Stderr, ...) branches in Decide.
+
+func TestDecide_debug_direct_intercept(t *testing.T) {
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), enabledCfg("ruff"), true, true)
+	if !d.Intercept {
+		t.Fatal("expected intercept")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_ciNever(t *testing.T) {
+	cfg := enabledCfg("ruff")
+	cfg.CIMode = "never"
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), cfg, true, true)
+	if d.Intercept {
+		t.Error("ci_mode=never with debug should still passthrough")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_passthroughFlag(t *testing.T) {
+	d := Decide("ruff", []string{"check", "--watch", "."}, ruffRegistry(), enabledCfg("ruff"), true, true)
+	if d.Intercept {
+		t.Error("passthrough flag with debug should still passthrough")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_outputConflict(t *testing.T) {
+	d := Decide("ruff", []string{"check", "--output-format=github", "."}, ruffRegistry(), enabledCfg("ruff"), true, true)
+	if d.Intercept {
+		t.Error("output arg conflict with debug should still passthrough")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_wrongSubcommand(t *testing.T) {
+	d := Decide("ruff", []string{"format", "."}, ruffRegistry(), enabledCfg("ruff"), true, true)
+	if d.Intercept {
+		t.Error("wrong subcommand with debug should still passthrough")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_unknownTool(t *testing.T) {
+	d := Decide("unknown", []string{"check", "."}, ruffRegistry(), enabledCfg("unknown"), true, true)
+	if d.Intercept {
+		t.Error("unknown tool with debug should passthrough")
+	}
+}
+
+func TestDecide_debug_direct_passthrough_disabledTool(t *testing.T) {
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), enabledCfg(), true, true)
+	if d.Intercept {
+		t.Error("disabled tool with debug should passthrough")
+	}
+}
+
+func TestDecide_debug_poRaw(t *testing.T) {
+	t.Setenv("PO_RAW", "1")
+	d := Decide("ruff", []string{"check", "."}, ruffRegistry(), enabledCfg("ruff"), true, true)
+	if d.Intercept {
+		t.Error("PO_RAW with debug should passthrough")
+	}
+}
+
+func TestDecide_debug_launcher_intercept(t *testing.T) {
+	d := Decide("uvx", []string{"ruff", "check", "."}, uvxRegistry(), enabledCfg("ruff"), true, true)
+	if !d.Intercept {
+		t.Fatal("uvx ruff check with debug should intercept")
+	}
+}
+
+func TestDecide_debug_launcher_unknownTool(t *testing.T) {
+	d := Decide("uvx", []string{"sometool", "."}, uvxRegistry(), enabledCfg("ruff"), true, true)
+	if d.Intercept {
+		t.Error("unknown launcher tool with debug should passthrough")
+	}
+}
+
+func TestDecide_debug_launcher_disabledTool(t *testing.T) {
+	d := Decide("uvx", []string{"ruff", "check", "."}, uvxRegistry(), enabledCfg(), true, true)
+	if d.Intercept {
+		t.Error("disabled launcher tool with debug should passthrough")
+	}
+}
+
+func TestDecide_launcher_passthroughFlag(t *testing.T) {
+	reg := &registry.Registry{
+		Tools: map[string]registry.ToolConfig{
+			"ruff": {
+				Plugin:           "prettyout-ruff",
+				OutputArgs:       []string{"--output-format=json"},
+				PassthroughFlags: []string{"--watch"},
+				Launchers:        []string{"uvx"},
+			},
+		},
+		Launchers: map[string]registry.LauncherConfig{
+			"uvx": {},
+		},
+	}
+	d := Decide("uvx", []string{"ruff", "--watch", "check", "."}, reg, enabledCfg("ruff"), true, false)
+	if d.Intercept {
+		t.Error("passthrough flag via launcher should passthrough")
+	}
+}
+
+func TestDecide_launcher_outputArgConflict(t *testing.T) {
+	d := Decide("uvx", []string{"ruff", "check", "--output-format=github", "."}, uvxRegistry(), enabledCfg("ruff"), true, false)
+	if d.Intercept {
+		t.Error("output arg conflict via launcher should passthrough")
+	}
+}
+
+func TestDecide_launcher_wrongSubcommand(t *testing.T) {
+	d := Decide("uvx", []string{"ruff", "format", "."}, uvxRegistry(), enabledCfg("ruff"), true, false)
+	if d.Intercept {
+		t.Error("wrong subcommand via launcher should passthrough")
+	}
+}
+
+func TestExecute_interceptJSONOnStderr(t *testing.T) {
+	// Tool writes to stderr; JSONOnStderr=true pipes tool stderr to plugin stdin.
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "sh",
+		TransformedArgs: []string{"-c", "echo hello >&2"},
+		Plugin:          "cat",
+		JSONOnStderr:    true,
+	}
+	code := Execute(d)
+	if code != 0 {
+		t.Errorf("JSONOnStderr intercept exit code = %d, want 0", code)
+	}
+}
+
+func TestExecute_interceptCommandNotFound(t *testing.T) {
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "definitely-not-a-real-command-xyz-abc",
+		TransformedArgs: []string{},
+		Plugin:          "cat",
+	}
+	code := Execute(d)
+	if code != 127 {
+		t.Errorf("not-found intercept exit code = %d, want 127", code)
+	}
+}
+
+func TestExecute_interceptPluginNotFound(t *testing.T) {
+	d := Decision{
+		Intercept:       true,
+		RealCmd:         "echo",
+		TransformedArgs: []string{"hello"},
+		Plugin:          "definitely-not-a-real-plugin-xyz-abc",
+	}
+	code := Execute(d)
+	if code != 1 {
+		t.Errorf("plugin not found exit code = %d, want 1", code)
+	}
+}

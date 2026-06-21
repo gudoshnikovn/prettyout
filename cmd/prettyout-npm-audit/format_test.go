@@ -108,3 +108,67 @@ func TestNpmSeverityRank(t *testing.T) {
 		t.Error("high should rank before moderate")
 	}
 }
+
+func TestNpmSeverityRank_unknown(t *testing.T) {
+	// Unknown severity falls back to last position.
+	rank := npmSeverityRank("unknown-severity")
+	if rank != len(npmSeverityOrder) {
+		t.Errorf("unknown severity rank = %d, want %d", rank, len(npmSeverityOrder))
+	}
+}
+
+func TestFixLabel_nil(t *testing.T) {
+	if got := fixLabel(nil); got != "no fix" {
+		t.Errorf("fixLabel(nil) = %q, want 'no fix'", got)
+	}
+}
+
+func TestFixLabel_objectFalse(t *testing.T) {
+	raw := []byte(`{"isSemVerMajor":false}`)
+	if got := fixLabel(raw); got != "fix available" {
+		t.Errorf("fixLabel(isSemVerMajor:false) = %q, want 'fix available'", got)
+	}
+}
+
+func TestFormat_withColors(t *testing.T) {
+	cfg := formatter.DefaultConfig()
+	cfg.Colors = true
+	out := captureOutput(func() {
+		if err := format([]byte(npmJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("colors=true: want ANSI codes, got:\n%s", out)
+	}
+}
+
+func TestFormat_statsMode(t *testing.T) {
+	cfg := noColors()
+	cfg.Stats = true
+	out := captureOutput(func() {
+		if err := format([]byte(npmJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "critical") {
+		t.Errorf("stats: want critical, got:\n%s", out)
+	}
+	if !strings.Contains(out, "vulnerabilities") {
+		t.Errorf("stats: want vulnerabilities summary, got:\n%s", out)
+	}
+}
+
+func TestFormat_emptySeverity(t *testing.T) {
+	// Vulnerability with no severity field → defaults to "info".
+	input := `{"vulnerabilities":{"pkg":{"name":"pkg","severity":"","range":"*","fixAvailable":false}}}`
+	cfg := noColors()
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if !strings.Contains(out, "info") {
+		t.Errorf("empty severity: want 'info', got:\n%s", out)
+	}
+}

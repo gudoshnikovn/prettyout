@@ -185,6 +185,24 @@ func TestFormat_fixHint_both(t *testing.T) {
 	}
 }
 
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"E501"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has F401, should be skipped
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}
+
 func TestFormat_singleLineSingular(t *testing.T) {
 	cfg := noColors()
 	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":5},"end_location":{"row":5}}]`

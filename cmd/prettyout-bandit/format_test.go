@@ -134,6 +134,36 @@ func TestFormat_statsMode(t *testing.T) {
 	}
 }
 
+func TestSeverityColor_withColors(t *testing.T) {
+	if severityColor("HIGH", true) == "" {
+		t.Error("severityColor(HIGH, true): want ANSI code")
+	}
+	if severityColor("MEDIUM", true) == "" {
+		t.Error("severityColor(MEDIUM, true): want ANSI code")
+	}
+	if severityColor("HIGH", false) != "" {
+		t.Error("severityColor(HIGH, false): want empty")
+	}
+}
+
+func TestFormat_byFile_onlyRules(t *testing.T) {
+	cfg := noColors()
+	cfg.GroupBy = "file"
+	cfg.OnlyRules = []string{"B101"}
+	out := captureOutput(func() {
+		if err := format([]byte(twoFileJSON), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	// bar.py only has B602, should be skipped
+	if strings.Contains(out, "bar.py") {
+		t.Errorf("byFile+onlyRules: bar.py should be filtered, got:\n%s", out)
+	}
+	if !strings.Contains(out, "foo.py") {
+		t.Errorf("byFile+onlyRules: foo.py should appear, got:\n%s", out)
+	}
+}
+
 func TestCleanFilename(t *testing.T) {
 	if got := cleanFilename("./foo.py"); got != "foo.py" {
 		t.Errorf("got %q, want %q", got, "foo.py")
