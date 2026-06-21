@@ -3,7 +3,7 @@ package launcher
 import (
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 // ExtractTool parses launcher arguments to find the tool name and first

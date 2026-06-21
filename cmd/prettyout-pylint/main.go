@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type pylintMsg struct {
@@ -146,6 +146,24 @@ func formatByRule(msgs []pylintMsg, cfg formatter.Config, score float64) error {
 	totalFiles := map[string]struct{}{}
 	for _, m := range msgs {
 		totalFiles[formatter.ResolvePath(m.Path, cfg)] = struct{}{}
+	}
+
+	if cfg.Stats {
+		// pylint uses display names (e.g. C0301/line-too-long) instead of raw keys
+		statsOrder := make([]string, len(ruleOrder))
+		statsCounts := make(map[string]int, len(ruleOrder))
+		statsFiles := make(map[string]int, len(ruleOrder))
+		statsMsgs := make(map[string]string, len(ruleOrder))
+		for i, key := range ruleOrder {
+			r := rules[key]
+			disp := r.display
+			statsOrder[i] = disp
+			statsCounts[disp] = ruleCounts[key]
+			statsFiles[disp] = len(r.fileLines)
+			statsMsgs[disp] = r.message
+		}
+		formatter.PrintStats(statsOrder, statsCounts, statsFiles, statsMsgs, len(totalFiles), cfg)
+		return nil
 	}
 
 	for _, key := range ruleOrder {

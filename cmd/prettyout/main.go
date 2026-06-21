@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/internal/config"
-	"github.com/gudoshnikov_na/prettyout/internal/hook"
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
-	"github.com/gudoshnikov_na/prettyout/internal/runner"
+	"github.com/gudoshnikovn/prettyout/internal/config"
+	"github.com/gudoshnikovn/prettyout/internal/hook"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/runner"
 )
 
 func main() {

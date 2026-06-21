@@ -15,6 +15,7 @@ type Config struct {
 	Sort             string   // "" | "alpha" (default) | "count"
 	OnlyRules        []string // if non-empty, only show rules in this list
 	OnlyFiles        []string // if non-empty, only show files matching these prefixes
+	Stats            bool     // PO_STATS=1: compact per-rule count table
 	Extra            map[string]any
 }
 
@@ -40,6 +41,7 @@ type rawSettings struct {
 	GroupBy          string         `yaml:"group_by"`
 	Colors           *bool          `yaml:"colors"`
 	MaxMessageLength *int           `yaml:"max_message_length"`
+	Stats            *bool          `yaml:"stats"`
 	Extra            map[string]any `yaml:"extra"`
 }
 
@@ -68,6 +70,9 @@ func applyFile(path, toolName string, cfg *Config) {
 	}
 	if s.MaxMessageLength != nil {
 		cfg.MaxMessageLength = *s.MaxMessageLength
+	}
+	if s.Stats != nil {
+		cfg.Stats = *s.Stats
 	}
 	for k, v := range s.Extra {
 		if cfg.Extra == nil {

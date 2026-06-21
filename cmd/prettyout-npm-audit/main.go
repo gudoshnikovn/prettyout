@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type npmVuln struct {
@@ -102,6 +102,28 @@ func format(data []byte, cfg formatter.Config) error {
 	sort.Slice(sevs, func(i, j int) bool {
 		return npmSeverityRank(sevs[i]) < npmSeverityRank(sevs[j])
 	})
+
+	if cfg.Stats {
+		maxCount := 0
+		for _, sev := range sevs {
+			if c := len(bySeverity[sev]); c > maxCount {
+				maxCount = c
+			}
+		}
+		width := len(fmt.Sprintf("%d", maxCount))
+		for _, sev := range sevs {
+			c := len(bySeverity[sev])
+			col := npmColor(sev, cfg.Colors)
+			reset := ""
+			if cfg.Colors {
+				reset = "\033[0m"
+			}
+			fmt.Printf("%*d  %s%s%s\n", width, c, col, sev, reset)
+		}
+		fmt.Println()
+		fmt.Printf("%d vulnerabilities\n", len(report.Vulnerabilities))
+		return nil
+	}
 
 	total := len(report.Vulnerabilities)
 

@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 type FormatterSettings struct {

@@ -20,6 +20,9 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("PO_ONLY_FILES"); v != "" {
 		cfg.OnlyFiles = splitTrimmed(v)
 	}
+	if os.Getenv("PO_STATS") == "1" {
+		cfg.Stats = true
+	}
 }
 
 func splitTrimmed(s string) []string {

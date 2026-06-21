@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/internal/runner"
+	"github.com/gudoshnikovn/prettyout/internal/runner"
 )
 
 // runRun handles `prettyout run [--po-flags...] tool [tool-args...]`.

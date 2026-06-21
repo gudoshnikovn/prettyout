@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type eslintMessage struct {
@@ -107,6 +107,18 @@ func formatByRule(files []eslintFile, cfg formatter.Config) error {
 	}
 	ruleOrder = formatter.FilterRuleOrder(ruleOrder, cfg.OnlyRules)
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
+
+	if cfg.Stats {
+		ruleFileCount := make(map[string]int, len(ruleOrder))
+		ruleMessages := make(map[string]string, len(ruleOrder))
+		for _, rid := range ruleOrder {
+			r := rules[rid]
+			ruleFileCount[rid] = len(r.fileLines)
+			ruleMessages[rid] = r.message
+		}
+		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, len(totalFiles), cfg)
+		return nil
+	}
 
 	for _, rid := range ruleOrder {
 		r := rules[rid]

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type position struct {
@@ -134,6 +134,18 @@ func formatByRule(diags []diagnostic, cfg formatter.Config) error {
 	ruleOrder = formatter.SortOrder(ruleOrder, ruleCounts, cfg.Sort)
 
 	totalFiles := countDistinctFiles(diags, cfg)
+
+	if cfg.Stats {
+		ruleFileCount := make(map[string]int, len(ruleOrder))
+		ruleMessages := make(map[string]string, len(ruleOrder))
+		for _, code := range ruleOrder {
+			rg := rules[code]
+			ruleFileCount[code] = len(rg.files)
+			ruleMessages[code] = rg.message
+		}
+		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, totalFiles, cfg)
+		return nil
+	}
 
 	for _, code := range ruleOrder {
 		rg := rules[code]

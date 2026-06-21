@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type mypyMsg struct {
@@ -106,6 +106,18 @@ func formatByRule(msgs []mypyMsg, cfg formatter.Config) error {
 	totalFiles := map[string]struct{}{}
 	for _, m := range msgs {
 		totalFiles[m.File] = struct{}{}
+	}
+
+	if cfg.Stats {
+		ruleFileCount := make(map[string]int, len(ruleOrder))
+		ruleMessages := make(map[string]string, len(ruleOrder))
+		for _, rule := range ruleOrder {
+			r := rules[rule]
+			ruleFileCount[rule] = len(r.fileLines)
+			ruleMessages[rule] = r.message
+		}
+		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, len(totalFiles), cfg)
+		return nil
 	}
 
 	for _, rule := range ruleOrder {

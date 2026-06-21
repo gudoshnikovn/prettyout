@@ -3,7 +3,7 @@ package launcher
 import (
 	"testing"
 
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func uvxCfg() registry.LauncherConfig {

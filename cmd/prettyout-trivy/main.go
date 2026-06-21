@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type trivyVuln struct {
@@ -101,6 +101,32 @@ func format(data []byte, cfg formatter.Config) error {
 	sort.Slice(sevs, func(i, j int) bool {
 		return severityRank(sevs[i]) < severityRank(sevs[j])
 	})
+
+	if cfg.Stats {
+		maxCount := 0
+		for _, sev := range sevs {
+			if c := len(bySeverity[sev]); c > maxCount {
+				maxCount = c
+			}
+		}
+		width := len(fmt.Sprintf("%d", maxCount))
+		totalVulns := 0
+		for _, sev := range sevs {
+			c := len(bySeverity[sev])
+			totalVulns += c
+			col := trivyColor(sev, cfg.Colors)
+			reset := ""
+			if cfg.Colors {
+				reset = "\033[0m"
+			}
+			fmt.Printf("%*d  %s%s%s\n", width, c, col, sev, reset)
+		}
+		fmt.Println()
+		fmt.Printf("%d %s · %d severity %s\n",
+			totalVulns, formatter.Plural(totalVulns, "vulnerability", "vulnerabilities"),
+			len(sevs), formatter.Plural(len(sevs), "level", "levels"))
+		return nil
+	}
 
 	totalVulns := 0
 	for _, sev := range sevs {

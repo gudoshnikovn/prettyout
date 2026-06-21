@@ -157,3 +157,80 @@ func MatchesFileFilter(path string, onlyFiles []string) bool {
 	}
 	return false
 }
+
+// PrintStats prints a compact per-rule count table sorted by count descending,
+// followed by a summary line. ruleFiles may be nil to suppress the files column.
+func PrintStats(
+	ruleOrder []string,
+	ruleCounts map[string]int,
+	ruleFiles map[string]int,
+	ruleMessages map[string]string,
+	totalFiles int,
+	cfg Config,
+) {
+	sorted := make([]string, len(ruleOrder))
+	copy(sorted, ruleOrder)
+	sort.Slice(sorted, func(i, j int) bool {
+		ci, cj := ruleCounts[sorted[i]], ruleCounts[sorted[j]]
+		if ci != cj {
+			return ci > cj
+		}
+		return sorted[i] < sorted[j]
+	})
+
+	totalIssues := 0
+	maxCount := 0
+	maxRuleLen := 0
+	for _, r := range sorted {
+		c := ruleCounts[r]
+		totalIssues += c
+		if c > maxCount {
+			maxCount = c
+		}
+		if len(r) > maxRuleLen {
+			maxRuleLen = len(r)
+		}
+	}
+	countWidth := max(len(fmt.Sprintf("%d", maxCount)), len("COUNT"))
+
+	var fileNumWidth, fileColWidth int
+	if ruleFiles != nil {
+		maxFC := 0
+		for _, r := range sorted {
+			if fc := ruleFiles[r]; fc > maxFC {
+				maxFC = fc
+			}
+		}
+		fileNumWidth = len(fmt.Sprintf("%d", maxFC))
+		fileColWidth = max(fileNumWidth+6, len("FILES")) // N + space + "files"(5)
+	}
+
+	if ruleFiles != nil {
+		fmt.Printf("%*s  %-*s  %-*s  %s\n", countWidth, "COUNT", maxRuleLen, "RULE", fileColWidth, "FILES", "DESCRIPTION")
+	} else {
+		fmt.Printf("%*s  %-*s  %s\n", countWidth, "COUNT", maxRuleLen, "RULE", "DESCRIPTION")
+	}
+
+	for _, r := range sorted {
+		count := ruleCounts[r]
+		msg := ruleMessages[r]
+		if ruleFiles != nil {
+			fc := ruleFiles[r]
+			fileStr := fmt.Sprintf("%*d %s", fileNumWidth, fc, Plural(fc, "file", "files"))
+			if msg != "" {
+				fmt.Printf("%*d  %-*s  %-*s  — %s\n", countWidth, count, maxRuleLen, r, fileColWidth, fileStr, msg)
+			} else {
+				fmt.Printf("%*d  %-*s  %s\n", countWidth, count, maxRuleLen, r, fileStr)
+			}
+		} else {
+			if msg != "" {
+				fmt.Printf("%*d  %-*s  — %s\n", countWidth, count, maxRuleLen, r, msg)
+			} else {
+				fmt.Printf("%*d  %s\n", countWidth, count, r)
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(Summary(totalIssues, len(sorted), totalFiles))
+}

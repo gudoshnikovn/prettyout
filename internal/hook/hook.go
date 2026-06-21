@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/internal/completion"
-	"github.com/gudoshnikov_na/prettyout/internal/config"
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/completion"
+	"github.com/gudoshnikovn/prettyout/internal/config"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 // Generate returns shell code to be eval'd by the user's shell.

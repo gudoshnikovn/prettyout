@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type banditResult struct {
@@ -112,6 +112,18 @@ func formatByRule(results []banditResult, cfg formatter.Config) error {
 	totalFiles := map[string]struct{}{}
 	for _, r := range results {
 		totalFiles[formatter.ResolvePath(cleanFilename(r.Filename), cfg)] = struct{}{}
+	}
+
+	if cfg.Stats {
+		ruleFileCount := make(map[string]int, len(ruleOrder))
+		ruleMessages := make(map[string]string, len(ruleOrder))
+		for _, rule := range ruleOrder {
+			re := rules[rule]
+			ruleFileCount[rule] = len(re.fileLines)
+			ruleMessages[rule] = re.message
+		}
+		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, len(totalFiles), cfg)
+		return nil
 	}
 
 	for _, rule := range ruleOrder {

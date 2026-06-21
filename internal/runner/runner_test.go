@@ -3,8 +3,8 @@ package runner
 import (
 	"testing"
 
-	"github.com/gudoshnikov_na/prettyout/internal/config"
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/config"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func ruffRegistry() *registry.Registry {

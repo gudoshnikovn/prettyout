@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gudoshnikov_na/prettyout/internal/completion"
-	"github.com/gudoshnikov_na/prettyout/internal/config"
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/completion"
+	"github.com/gudoshnikovn/prettyout/internal/config"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 func runCompletion(args []string) {

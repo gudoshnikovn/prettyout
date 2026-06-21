@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type location struct {
@@ -96,6 +96,18 @@ func formatByRule(issues []issue, cfg formatter.Config) error {
 
 	totalIssues := len(issues)
 	totalFiles := countDistinctFiles(issues, cfg)
+
+	if cfg.Stats {
+		ruleFileCount := make(map[string]int, len(ruleOrder))
+		ruleMessages := make(map[string]string, len(ruleOrder))
+		for _, code := range ruleOrder {
+			rg := rules[code]
+			ruleFileCount[code] = len(rg.files)
+			ruleMessages[code] = rg.message
+		}
+		formatter.PrintStats(ruleOrder, ruleCounts, ruleFileCount, ruleMessages, totalFiles, cfg)
+		return nil
+	}
 
 	for _, code := range ruleOrder {
 		rg := rules[code]

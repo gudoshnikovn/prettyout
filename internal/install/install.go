@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 // IsInstalled reports whether the plugin binary for tc is found in PATH.
@@ -48,10 +48,10 @@ var upgraders = []upgrader{
 	},
 	{
 		name:   "go install",
-		cmdStr: "go install github.com/gudoshnikov_na/prettyout/cmd/prettyout@latest",
+		cmdStr: "go install github.com/gudoshnikovn/prettyout/cmd/prettyout@latest",
 		detect: func() bool { return true },
 		upgrade: func() error {
-			cmd := exec.Command("go", "install", "github.com/gudoshnikov_na/prettyout/cmd/prettyout@latest")
+			cmd := exec.Command("go", "install", "github.com/gudoshnikovn/prettyout/cmd/prettyout@latest")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()

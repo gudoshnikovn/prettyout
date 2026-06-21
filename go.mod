@@ -1,4 +1,4 @@
-module github.com/gudoshnikov_na/prettyout
+module github.com/gudoshnikovn/prettyout
 
 go 1.25.5
 

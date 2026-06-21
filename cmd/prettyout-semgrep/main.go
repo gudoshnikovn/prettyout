@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/pkg/formatter"
+	"github.com/gudoshnikovn/prettyout/pkg/formatter"
 )
 
 type semgrepStart struct {
@@ -122,6 +122,24 @@ func formatByRule(results []semgrepResult, cfg formatter.Config) error {
 	totalFiles := map[string]struct{}{}
 	for _, r := range results {
 		totalFiles[formatter.ResolvePath(r.Path, cfg)] = struct{}{}
+	}
+
+	if cfg.Stats {
+		// semgrep uses shortCheckID for display (strips namespace prefix)
+		statsOrder := make([]string, len(ruleOrder))
+		statsCounts := make(map[string]int, len(ruleOrder))
+		statsFiles := make(map[string]int, len(ruleOrder))
+		statsMsgs := make(map[string]string, len(ruleOrder))
+		for i, rule := range ruleOrder {
+			re := rules[rule]
+			disp := shortCheckID(rule)
+			statsOrder[i] = disp
+			statsCounts[disp] = ruleCounts[rule]
+			statsFiles[disp] = len(re.fileLines)
+			statsMsgs[disp] = re.message
+		}
+		formatter.PrintStats(statsOrder, statsCounts, statsFiles, statsMsgs, len(totalFiles), cfg)
+		return nil
 	}
 
 	for _, rule := range ruleOrder {

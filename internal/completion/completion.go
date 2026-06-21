@@ -3,7 +3,7 @@ package completion
 import (
 	"fmt"
 
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 // Generate returns a shell completion script for prettyout.

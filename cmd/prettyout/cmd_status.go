@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gudoshnikov_na/prettyout/internal/config"
-	"github.com/gudoshnikov_na/prettyout/internal/install"
-	"github.com/gudoshnikov_na/prettyout/internal/registry"
+	"github.com/gudoshnikovn/prettyout/internal/config"
+	"github.com/gudoshnikovn/prettyout/internal/install"
+	"github.com/gudoshnikovn/prettyout/internal/registry"
 )
 
 const version = "0.3.0"
