@@ -165,6 +165,9 @@ func TestSeverityColor_unknownSeverity(t *testing.T) {
 	if got := SeverityColor("mystery", true); got != "" {
 		t.Errorf("unknown severity should return empty, got %q", got)
 	}
+	if got := SeverityColor("", true); got != "\033[1;33m" {
+		t.Errorf("empty severity should return yellow, got %q", got)
+	}
 }
 
 func TestPlural(t *testing.T) {

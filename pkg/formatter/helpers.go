@@ -45,7 +45,7 @@ func SeverityColor(sev string, colors bool) string {
 	switch sev {
 	case "error", "ERROR", "fatal", "FATAL", "CRITICAL", "critical", "HIGH", "high":
 		return "\033[1;31m"
-	case "warning", "WARNING", "WARN", "warn", "MEDIUM", "moderate", "MODERATE":
+	case "warning", "WARNING", "WARN", "warn", "MEDIUM", "moderate", "MODERATE", "":
 		return "\033[1;33m"
 	case "information", "info", "INFO", "note", "NOTE", "style", "hint", "LOW", "low":
 		return "\033[1;34m"
