@@ -156,6 +156,19 @@ func TestFormat_fixHint_safeOnly(t *testing.T) {
 	}
 }
 
+func TestFormat_fixHint_displayOnly(t *testing.T) {
+	cfg := noColors()
+	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":1},"end_location":{"row":1},"fix":{"applicability":"display"}}]`
+	out := captureOutput(func() {
+		if err := format([]byte(input), cfg); err != nil {
+			t.Error(err)
+		}
+	})
+	if strings.Contains(out, "fixable with") {
+		t.Errorf("display-only fixes should not be reported as fixable, got:\n%s", out)
+	}
+}
+
 func TestFormat_fixHint_unsafeOnly(t *testing.T) {
 	cfg := noColors()
 	input := `[{"code":"E501","message":"too long","filename":"a.py","location":{"row":1},"end_location":{"row":1},"fix":{"applicability":"unsafe"}}]`

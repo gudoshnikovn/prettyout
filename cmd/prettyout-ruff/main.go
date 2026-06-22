@@ -61,10 +61,10 @@ func printFixHint(issues []issue) {
 		if iss.Fix == nil {
 			continue
 		}
-		if strings.EqualFold(iss.Fix.Applicability, "unsafe") {
-			unsafe++
-		} else {
+		if strings.EqualFold(iss.Fix.Applicability, "safe") {
 			safe++
+		} else if strings.EqualFold(iss.Fix.Applicability, "unsafe") {
+			unsafe++
 		}
 	}
 	if safe > 0 && unsafe > 0 {

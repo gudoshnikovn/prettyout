@@ -9,7 +9,7 @@ import (
 	"github.com/gudoshnikovn/prettyout/internal/install"
 )
 
-const version = "0.3.0"
+const version = "1.0.0"
 
 func runStatus() {
 	reg := mustLoadBuiltin()
